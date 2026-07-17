@@ -15,12 +15,15 @@ Move Generation :
 - Bitboards
 - Attack Tables
 Search:
-
+- None
 Evaluation:
-
+- None
 --------------------
 Future Improvements:
 Move Generation:
 - Magic Bitboards
 Search:
+- Search Extensions
 Evaluation:
+- King Safety
+- Pawn Structure (and pawns in general)
