@@ -7,6 +7,8 @@ add_executable(ChessEngine
     main.cpp
     BoardRepresentation/board.cpp
     BoardRepresentation/movegenerator.cpp
+    Search/search.cpp
+    Evaluation/evaluation.cpp
 )
 
 target_compile_options(ChessEngine PRIVATE -O3)
