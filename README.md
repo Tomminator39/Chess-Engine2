@@ -2,7 +2,6 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List:
 
-- Add basic evaluation
 - Add negamax search with alpha beta pruning
 - Add move ordering (First with MVV-LVA)
 - Add iterative deepening
@@ -21,7 +20,7 @@ Search:
 - None
 
 Evaluation:
-- None
+- Count Material
 --------------------
 Future Improvements:
 
