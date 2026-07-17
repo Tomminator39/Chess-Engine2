@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(ChessEngine
     main.cpp
+    BoardRepresentation/board.cpp
+    BoardRepresentation/movegenerator.cpp
 )
 
 target_compile_options(ChessEngine PRIVATE -O3)
