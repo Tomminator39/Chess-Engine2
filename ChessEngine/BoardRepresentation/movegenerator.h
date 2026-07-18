@@ -6,8 +6,18 @@ struct MoveList{
     int count = 0;
 };
 
+struct CheckInfo{
+    bool inCheck;
+    uint64_t pinned = 0;
+    uint64_t checkers = 0; // If this is bigger or equal than 2 the king must move
+};
+
 void PrecomputeMoveData();
 
 bool isInCheck(const Board& board, Color side);
+
+CheckInfo getCheckInfo(const Board& board);
+
+MoveList generateMoves(Board& board);
 
 void RunPerftTest(Board& board, int depth);

@@ -173,6 +173,7 @@ void Board::makeMove(Move move){
             pieceBB[movedColor][PAWN] ^= (1ULL << move.targetSquare());
             pieceBB[movedColor][promPiece] ^= (1ULL << move.targetSquare());
             pieceBB[capturedColor][capturedType] ^= (1ULL << move.targetSquare());
+            occupancy[2] &= ~(1ULL << move.targetSquare());
             occupancy[capturedColor] ^= (1ULL << move.targetSquare());
             mailbox[move.targetSquare()] = movedColor * 6 + promPiece; 
             break;
@@ -299,6 +300,7 @@ void Board::unmakeMove(Move move){
         case FLAG_PROM_CAPT_ROOK:
         case FLAG_PROM_CAPT_QUEEN:
             pieceBB[capturedColor][capturedType] ^= (1ULL << move.targetSquare());
+            occupancy[2] |= (1ULL << move.targetSquare());
             occupancy[capturedColor] ^= (1ULL << move.targetSquare());
             mailbox[move.fromSquare()] = movedColor * 6 + PAWN;
             mailbox[move.targetSquare()] = captured;

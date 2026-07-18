@@ -2,7 +2,6 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List:
 
-- Add negamax search with alpha beta pruning
 - Add move ordering (First with MVV-LVA)
 - Add iterative deepening
 - Add quiescence search
@@ -17,7 +16,7 @@ Move Generation :
 - Attack Tables
 
 Search:
-- None
+- Negamax search with alpha beta pruning
 
 Evaluation:
 - Count Material

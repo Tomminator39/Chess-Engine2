@@ -76,7 +76,7 @@ class Board{
     public:
      struct BoardState {
             uint8_t castlingRights;
-            uint8_t enPassantSquare;
+            int8_t enPassantSquare;
             int halfMoveCounter;
             int8_t capturedPiece;
         };
@@ -99,7 +99,7 @@ class Board{
         int halfMoveCounter = 0;
         int fullMoveCounter = 0;
         
-        uint8_t enPassantSquare = -1;
+        int8_t enPassantSquare = -1;
 
         void LoadPositionFromFen(const std::string& fen);
 

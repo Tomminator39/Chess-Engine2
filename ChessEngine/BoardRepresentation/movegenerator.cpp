@@ -262,6 +262,74 @@ bool isInCheck(const Board& board, Color side){
     return isSquareAttacked(board, kingSquare, side);
 }
 
+CheckInfo getCheckInfo(Board& board){
+    CheckInfo info;
+    Color attackedSide = board.turn;
+    int kingSquare = __builtin_ctzll(board.pieceBB[attackedSide][KING]);
+
+    for(int directionIndex = 0; directionIndex < 8; directionIndex ++){
+        int friendlySquare = -1;
+
+        for(int n = 0; n < squaresToEdge[kingSquare][directionIndex]; n++){
+            int targetSquare = kingSquare + directionCompass[directionIndex] * (n + 1);
+            int pieceOnTargetSquare = board.mailbox[targetSquare];
+
+            if(pieceOnTargetSquare == -1) continue;
+
+            int pieceOnTargetSquareType = mailboxType(pieceOnTargetSquare);
+            Color pieceColor = mailboxColor(pieceOnTargetSquare);
+
+            bool isMatchingAttacker = false;
+            if(directionIndex >= 4){
+                if(pieceOnTargetSquareType == BISHOP || pieceOnTargetSquareType == QUEEN) {
+                    isMatchingAttacker = true;
+                }
+            } else {
+                if(pieceOnTargetSquareType == ROOK || pieceOnTargetSquareType == QUEEN) {
+                    isMatchingAttacker = true;
+                }
+            }
+
+            if(friendlySquare == -1) {
+                if(pieceColor != attackedSide) {
+                    if(isMatchingAttacker) {
+                        info.checkers |= (1ULL << targetSquare);
+                    }
+                    break;
+                } else {
+                    friendlySquare = targetSquare;
+                }
+            } 
+            else {
+                if(pieceColor != attackedSide) {
+                    if(isMatchingAttacker) {
+                        info.pinned |= (1ULL << friendlySquare);
+                    }
+                    break;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    if(knightAttacks[kingSquare] & board.pieceBB[!attackedSide][KNIGHT]) {
+        info.checkers |= (knightAttacks[kingSquare] & board.pieceBB[!attackedSide][KNIGHT]);
+    }
+
+    if(kingAttacks[kingSquare] & board.pieceBB[!attackedSide][KING]) {
+        info.checkers |= (kingAttacks[kingSquare] & board.pieceBB[!attackedSide][KING]);
+    }
+
+    if(pawnAttacks[attackedSide][kingSquare] & board.pieceBB[!attackedSide][PAWN]) {
+        info.checkers |= (pawnAttacks[attackedSide][kingSquare] & board.pieceBB[!attackedSide][PAWN]);
+    }
+
+    info.inCheck = (info.checkers != 0);
+
+    return info;
+}
+
 MoveList generateMoves(Board& board){
     MoveList pseudoLegal;
 
