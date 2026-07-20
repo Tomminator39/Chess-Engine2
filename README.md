@@ -2,10 +2,7 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List:
 
-- Add move ordering (First with MVV-LVA)
-- Add iterative deepening
-- Add quiescence search
-- Add transposition table
+- UCI (don't fprget the time management stuff here)
 - Add Piece Square tables
 - Random Opening Database System
 ---------------------
@@ -17,6 +14,9 @@ Move Generation :
 
 Search:
 - Negamax search with alpha beta pruning
+- Transposition Tables
+- Iterative Deepening
+- MVV-LVA
 
 Evaluation:
 - Count Material

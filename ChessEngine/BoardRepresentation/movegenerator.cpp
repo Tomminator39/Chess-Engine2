@@ -72,7 +72,7 @@ void PrecomputeMoveData(){
     }
 }
 
-void generateSlidingMoves(const Board& board, MoveList& moveList, int startSquare, PieceType type){
+void generateSlidingMoves(const Board& board, MoveList& moveList, int startSquare, PieceType type, bool onlyGenerateCaptures){
     int startDirIndex = (type == BISHOP) ? 4 : 0;
     int endDirIndex = (type == ROOK) ? 4 : 8;
 
@@ -83,8 +83,10 @@ void generateSlidingMoves(const Board& board, MoveList& moveList, int startSquar
             int8_t pieceOnTargetSquare = board.mailbox[targetSquare];
 
             if(pieceOnTargetSquare == -1){
-                Move move = {startSquare, targetSquare, FLAG_QUIET};
-                moveList.moves[moveList.count++] = move;
+                if(!onlyGenerateCaptures){
+                    Move move = {startSquare, targetSquare, FLAG_QUIET};
+                    moveList.moves[moveList.count++] = move;
+                }
                 continue; // keep sliding 
             }
 
@@ -97,7 +99,7 @@ void generateSlidingMoves(const Board& board, MoveList& moveList, int startSquar
     }
 }
 
-void generatePawnMoves(const Board& board, MoveList& moveList, int startSquare){
+void generatePawnMoves(const Board& board, MoveList& moveList, int startSquare, bool onlyGenerateCaptures){
     int direction = (board.turn == WHITE) ? 8 : -8;
     int captureSquares[] = {startSquare + direction + 1, startSquare + direction - 1};
     int startRank = (board.turn == WHITE) ? 1 : 6;
@@ -145,7 +147,7 @@ void generatePawnMoves(const Board& board, MoveList& moveList, int startSquare){
         }
     }
 
-    if(board.mailbox[startSquare + direction] == -1){
+    if(board.mailbox[startSquare + direction] == -1 && !onlyGenerateCaptures){
         int targetSquare = startSquare + direction;
 
         if (promotionRank == targetSquare / 8) {
@@ -178,8 +180,9 @@ void generatePawnMoves(const Board& board, MoveList& moveList, int startSquare){
     }
 }
 
-void generateKnightMoves(const Board& board, MoveList& moveList, int startSquare){
-    uint64_t attacks = knightAttacks[startSquare] & ~board.occupancy[board.turn];
+void generateKnightMoves(const Board& board, MoveList& moveList, int startSquare, bool onlyGenerateCaptures){
+    uint64_t targetMask = onlyGenerateCaptures ? board.occupancy[!board.turn] : ~board.occupancy[board.turn];
+    uint64_t attacks = knightAttacks[startSquare] & targetMask;
     while(attacks){
         int targetSquare = __builtin_ctzll(attacks);
         attacks &= attacks - 1;
@@ -189,8 +192,9 @@ void generateKnightMoves(const Board& board, MoveList& moveList, int startSquare
     }
 }
 
-void generateKingMoves(const Board& board, MoveList& moveList, int startSquare){
-    uint64_t attacks = kingAttacks[startSquare] & ~board.occupancy[board.turn];
+void generateKingMoves(const Board& board, MoveList& moveList, int startSquare, bool onlyGenerateCaptures){
+    uint64_t targetMask = onlyGenerateCaptures ? board.occupancy[!board.turn] : ~board.occupancy[board.turn];
+    uint64_t attacks = kingAttacks[startSquare] & targetMask;
     while(attacks){
         int targetSquare = __builtin_ctzll(attacks);
         attacks &= attacks - 1;
@@ -262,7 +266,7 @@ bool isInCheck(const Board& board, Color side){
     return isSquareAttacked(board, kingSquare, side);
 }
 
-CheckInfo getCheckInfo(Board& board){
+CheckInfo getCheckInfo(const Board& board){
     CheckInfo info;
     Color attackedSide = board.turn;
     int kingSquare = __builtin_ctzll(board.pieceBB[attackedSide][KING]);
@@ -330,14 +334,14 @@ CheckInfo getCheckInfo(Board& board){
     return info;
 }
 
-MoveList generateMoves(Board& board){
+MoveList generateMoves(Board& board, bool onlyGenerateCaptures){
     MoveList pseudoLegal;
 
     for(PieceType pieceType : slidingPieces){ // for each sliding piece (rook/bishop/queen)
         uint64_t bb = board.pieceBB[board.turn][pieceType];
         while(bb){
             int square = __builtin_ctzll(bb);
-            generateSlidingMoves(board, pseudoLegal, square, pieceType);
+            generateSlidingMoves(board, pseudoLegal, square, pieceType, onlyGenerateCaptures);
             bb &= bb - 1;
         }
     }
@@ -345,25 +349,26 @@ MoveList generateMoves(Board& board){
     uint64_t pawns = board.pieceBB[board.turn][PAWN];
     while(pawns){
         int square = __builtin_ctzll(pawns);
-        generatePawnMoves(board, pseudoLegal, square);
+        generatePawnMoves(board, pseudoLegal, square, onlyGenerateCaptures);
         pawns &= pawns - 1;
     }
 
     uint64_t knights = board.pieceBB[board.turn][KNIGHT];
     while(knights){
         int square = __builtin_ctzll(knights);
-        generateKnightMoves(board, pseudoLegal, square);
+        generateKnightMoves(board, pseudoLegal, square, onlyGenerateCaptures);
         knights &= knights - 1;
     }
 
     uint64_t kings = board.pieceBB[board.turn][KING];
     if(kings){
         int square = __builtin_ctzll(kings);
-        generateKingMoves(board, pseudoLegal, square);
+        generateKingMoves(board, pseudoLegal, square, onlyGenerateCaptures);
     }
 
-    generateCastlingMoves(board, pseudoLegal);
-
+    if(!onlyGenerateCaptures){
+        generateCastlingMoves(board, pseudoLegal);
+    }
     return pseudoLegal;
 }
 

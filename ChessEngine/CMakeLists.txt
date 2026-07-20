@@ -9,6 +9,7 @@ add_executable(ChessEngine
     BoardRepresentation/movegenerator.cpp
     Search/search.cpp
     Evaluation/evaluation.cpp
+    BoardRepresentation/zobrist.cpp
 )
 
 target_compile_options(ChessEngine PRIVATE -O3)

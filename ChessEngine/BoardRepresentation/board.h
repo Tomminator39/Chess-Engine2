@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include "zobrist.h"
 
 enum Color{WHITE, BLACK};
 
@@ -79,6 +80,7 @@ class Board{
             int8_t enPassantSquare;
             int halfMoveCounter;
             int8_t capturedPiece;
+            uint64_t zobristKey;
         };
 
     private:
@@ -92,6 +94,8 @@ class Board{
 
         int8_t mailbox[64]; // Mailbox for piece lookup
 
+        uint64_t zobristKey;
+
         Color turn = WHITE;
 
         uint8_t castlingRights = 0;
@@ -102,6 +106,12 @@ class Board{
         int8_t enPassantSquare = -1;
 
         void LoadPositionFromFen(const std::string& fen);
+
+        // These are here and not in the zobrist script so that board doesn't have to be passed through them and so also makeMove
+        void togglePieceKey(Color color, PieceType piece, int square);
+        void toggleTurnKey();
+        void toggleCastlingRightKey(Color color, bool kingSide);
+        void toggleEnPassantKey(int square);
 
         void makeMove(Move move);
         void unmakeMove(Move move);

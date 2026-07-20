@@ -18,6 +18,6 @@ bool isInCheck(const Board& board, Color side);
 
 CheckInfo getCheckInfo(const Board& board);
 
-MoveList generateMoves(Board& board);
+MoveList generateMoves(Board& board, bool onlyGenerateCaptures = false);
 
 void RunPerftTest(Board& board, int depth);
