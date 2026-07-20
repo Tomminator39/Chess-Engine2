@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Save Binary to Snapshots Folder",
+            "type": "shell",
+            // Linux / macOS: copies the name exactly as typed
+            "command": "cp ${command:cmake.launchTargetPath} ${workspaceFolder}/snapshots/${input:binaryName}",
+            "windows": {
+                // Windows: checks if you typed .exe. If not, it appends .exe automatically.
+                "command": "$name = '${input:binaryName}'; if (-not $name.EndsWith('.exe')) { $name += '.exe' }; Copy-Item '${command:cmake.launchTargetPath}' -Destination \"${workspaceFolder}/snapshots/$name\""
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "binaryName",
+            "type": "promptString",
+            "description": "Enter name for this engine version (e.g., chess_v1):",
+            "default": "chess_iteration"
+        }
+    ]
+}

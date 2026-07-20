@@ -1,2 +1,4 @@
 build/
-.vscode/
+snapshots/
+.vscode/*
+!.vscode/tasks.json
