@@ -10,6 +10,7 @@ add_executable(ChessEngine
     Search/search.cpp
     Evaluation/evaluation.cpp
     BoardRepresentation/zobrist.cpp
+    engine.cpp
 )
 
 target_compile_options(ChessEngine PRIVATE -O3)

@@ -5,6 +5,7 @@
 #include<bit>
 #include<chrono>
 #include<utility>
+#include<atomic>
 
 constexpr int INF = 32001;
 constexpr int MATE_VALUE = 32000;
@@ -54,6 +55,9 @@ class Searcher {
 
         Move startSearch(Board& board, int timeLimitMS);
 
+        void Stop() { stopSearch = true; }
+        void Reset(){ bestMove.data = 0; nodeCount = 0; bestEval = 0; std::fill(transpositionTable.entries.begin(), transpositionTable.entries.end(), TranspositionEntry{});; transpositionTable.currentAge = 0;}
+
     private:
         TranspositionTable transpositionTable; 
 
@@ -62,7 +66,7 @@ class Searcher {
         Move bestMoveThisIteration{};
         int bestEvalThisIteration = 0;
 
-        bool stopSearch = false;
+        std::atomic<bool> stopSearch = false;
         long long nodeCount = 0;
         std::chrono::steady_clock::time_point deadline;
 
