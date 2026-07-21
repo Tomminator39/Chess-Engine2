@@ -73,6 +73,10 @@ constexpr uint8_t FLAG_PROM_CAPT_BISHOP  = 13;
 constexpr uint8_t FLAG_PROM_CAPT_ROOK    = 14;
 constexpr uint8_t FLAG_PROM_CAPT_QUEEN   = 15;
 
+inline int mgPst[6][2][64];
+inline int egPst[6][2][64];
+inline constexpr int phaseValues[6] = { 0, 1, 1, 2, 4, 0 };
+
 class Board{
     public:
      struct BoardState {
@@ -81,6 +85,10 @@ class Board{
             int halfMoveCounter;
             int8_t capturedPiece;
             uint64_t zobristKey;
+
+            int midgameScore[2];
+            int endgameScore[2];
+            int gamePhase;
         };
 
     private:
@@ -105,6 +113,10 @@ class Board{
         
         int8_t enPassantSquare = -1;
 
+        int midgameScore[2];
+        int endgameScore[2];
+        int gamePhase;
+
         void LoadPositionFromFen(const std::string& fen);
 
         // These are here and not in the zobrist script so that board doesn't have to be passed through them and so also makeMove
@@ -112,6 +124,8 @@ class Board{
         void toggleTurnKey();
         void toggleCastlingRightKey(Color color, bool kingSide);
         void toggleEnPassantKey(int square);
+        inline void addPiece(Color color, PieceType piece, int square);
+        inline void removePiece(Color color, PieceType piece, int square);
 
         void makeMove(Move move);
         void unmakeMove(Move move);

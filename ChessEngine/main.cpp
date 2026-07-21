@@ -9,6 +9,7 @@
 
 int main() {
     InitZobristKeys();
+    InitEvaluation();
     PrecomputeMoveData();
 
     Board board;

@@ -2,8 +2,6 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List:
 
-- UCI (don't fprget the time management stuff here)
-- Add Piece Square tables
 - Random Opening Database System
 ---------------------
 Current Features:
@@ -20,6 +18,7 @@ Search:
 
 Evaluation:
 - Count Material
+- Piece Square Tables
 --------------------
 Future Improvements:
 
@@ -30,5 +29,6 @@ Search:
 - Search Extensions
 
 Evaluation:
+- PSQ optimized with texel tuning
 - King Safety
 - Pawn Structure (and pawns in general)

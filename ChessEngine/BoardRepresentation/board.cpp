@@ -42,6 +42,10 @@ void Board::LoadPositionFromFen(const std::string& fen){
     int rank = 7;
 
     std::fill(mailbox, mailbox + 64, -1);
+
+    midgameScore[WHITE] = midgameScore[BLACK] = 0;
+    endgameScore[WHITE] = endgameScore[BLACK] = 0;
+    gamePhase = 0;
     
     for (char c : pieceField){
         if (c == '/'){
@@ -53,6 +57,8 @@ void Board::LoadPositionFromFen(const std::string& fen){
             Color piece_color = (isupper(c)) ? WHITE : BLACK;
             PieceType piece_type = fenCharToPiece(tolower(c));
             int piece_square = rank * 8 + file;
+
+            addPiece(piece_color, piece_type, piece_square);
             
             togglePieceKey(piece_color, piece_type, piece_square);
 
@@ -119,6 +125,18 @@ void Board::toggleEnPassantKey(int square){
     zobristKey ^= allZobristKeys[EN_PASSANT_KEY_INDEX + file];
 }
 
+inline void Board::addPiece(Color color, PieceType piece, int square){
+    midgameScore[color] += mgPst[piece][color][square];
+    endgameScore[color] += egPst[piece][color][square];
+    gamePhase += phaseValues[piece];
+}
+
+inline void Board::removePiece(Color color, PieceType piece, int square){
+    midgameScore[color] -= mgPst[piece][color][square];
+    endgameScore[color] -= egPst[piece][color][square];
+    gamePhase -= phaseValues[piece];
+}
+
 void Board::makeMove(Move move){
     int8_t captured;
     uint8_t oldCastlingRights = castlingRights;
@@ -131,7 +149,7 @@ void Board::makeMove(Move move){
         captured = mailbox[move.targetSquare()];
     }
 
-    history[ply++] = {castlingRights, enPassantSquare, halfMoveCounter, captured, zobristKey};
+    history[ply++] = {castlingRights, enPassantSquare, halfMoveCounter, captured, zobristKey, { midgameScore[WHITE], midgameScore[BLACK] }, { endgameScore[WHITE], endgameScore[BLACK] }, gamePhase};
 
     if(enPassantSquare != -1){
         toggleEnPassantKey(enPassantSquare);
@@ -150,10 +168,15 @@ void Board::makeMove(Move move){
     uint8_t flags = move.flags();
     switch(flags){
         case FLAG_QUIET:
+            removePiece(movedColor, movedType, move.fromSquare());
+            addPiece(movedColor, movedType, move.targetSquare());
             togglePieceKey(movedColor, movedType, move.fromSquare());
             togglePieceKey(movedColor, movedType, move.targetSquare());
             break;
         case FLAG_CAPTURE:
+            removePiece(mailboxColor(captured), mailboxType(captured), move.targetSquare());
+            removePiece(movedColor, movedType, move.fromSquare());
+            addPiece(movedColor, movedType, move.targetSquare());
             togglePieceKey(mailboxColor(captured), mailboxType(captured), move.targetSquare());
             togglePieceKey(movedColor, movedType, move.fromSquare());
             togglePieceKey(movedColor, movedType, move.targetSquare());
@@ -161,6 +184,9 @@ void Board::makeMove(Move move){
             occupancy[2] &= ~(1ULL << move.targetSquare());
             occupancy[capturedColor] ^= (1ULL << move.targetSquare()); break;
         case FLAG_EN_PASSANT: { int capturedPawnSquare = (turn == WHITE) ? move.targetSquare() - 8 : move.targetSquare() + 8;
+            removePiece(mailboxColor(captured), PAWN, capturedPawnSquare);
+            removePiece(movedColor, PAWN, move.fromSquare());
+            addPiece(movedColor, PAWN, move.targetSquare());
             togglePieceKey(movedColor, movedType, move.fromSquare());
             togglePieceKey(mailboxColor(captured), mailboxType(captured), capturedPawnSquare);
             togglePieceKey(movedColor, movedType, move.targetSquare());
@@ -169,10 +195,15 @@ void Board::makeMove(Move move){
             occupancy[capturedColor] ^= (1ULL << capturedPawnSquare);
             mailbox[capturedPawnSquare] = -1;
             enPassantSquare = -1; break; }
-        case FLAG_CASTLING: 
+        case FLAG_CASTLING:
+            removePiece(movedColor, KING, move.fromSquare());
+            addPiece(movedColor, KING, move.targetSquare());
+
             if(movedColor == WHITE){
                 togglePieceKey(WHITE, KING, E1);
                 if(move.targetSquare() == G1){
+                    removePiece(WHITE, ROOK, H1);
+                    addPiece(WHITE, ROOK, F1);
                     togglePieceKey(WHITE, ROOK, H1);
                     togglePieceKey(WHITE, ROOK, F1);
                     togglePieceKey(WHITE, KING, G1);
@@ -183,6 +214,8 @@ void Board::makeMove(Move move){
                     mailbox[F1] = WHITE * 6 + ROOK;
                 }
                 else{
+                    removePiece(WHITE, ROOK, A1);
+                    addPiece(WHITE, ROOK, D1);
                     togglePieceKey(WHITE, ROOK, A1);
                     togglePieceKey(WHITE, ROOK, D1);
                     togglePieceKey(WHITE, KING, move.targetSquare());
@@ -196,6 +229,8 @@ void Board::makeMove(Move move){
             else{
                 togglePieceKey(BLACK, KING, E8);
                 if(move.targetSquare() == G8){
+                    removePiece(BLACK, ROOK, H8);
+                    addPiece(BLACK, ROOK, F8);
                     togglePieceKey(BLACK, ROOK, H8);
                     togglePieceKey(BLACK, ROOK, F8);
                     togglePieceKey(BLACK, KING, G8);
@@ -206,6 +241,8 @@ void Board::makeMove(Move move){
                     mailbox[F8] = BLACK * 6 + ROOK;
                 }
                 else{
+                    removePiece(BLACK, ROOK, A8);
+                    addPiece(BLACK, ROOK, D8);
                     togglePieceKey(BLACK, ROOK, A8);
                     togglePieceKey(BLACK, ROOK, D8);
                     togglePieceKey(BLACK, KING, move.targetSquare());
@@ -224,6 +261,8 @@ void Board::makeMove(Move move){
             // Since FLAG_PROMOTION_KNIGHT is 8, subtracting 8 gives 0, 9 gives 1, etc.
             PieceType promPiece = static_cast<PieceType>(flags - FLAG_PROMOTION_KNIGHT + 1);
 
+            removePiece(movedColor, PAWN, move.fromSquare());
+            addPiece(movedColor, promPiece, move.targetSquare());
             togglePieceKey(movedColor, PAWN, move.fromSquare());
             togglePieceKey(movedColor, promPiece, move.targetSquare());
             pieceBB[movedColor][PAWN] ^= (1ULL << move.targetSquare());
@@ -238,6 +277,9 @@ void Board::makeMove(Move move){
             // Since FLAG_PROM_CAPT_KNIGHT is 12, subtracting 12 gives you the piece type
             PieceType promPiece = static_cast<PieceType>(flags - FLAG_PROM_CAPT_KNIGHT + 1);
 
+            removePiece(mailboxColor(captured), mailboxType(captured), move.targetSquare());
+            removePiece(movedColor, PAWN, move.fromSquare());
+            addPiece(movedColor, promPiece, move.targetSquare());
             togglePieceKey(mailboxColor(captured), mailboxType(captured), move.targetSquare());
             togglePieceKey(movedColor, PAWN, move.fromSquare());
             togglePieceKey(movedColor, promPiece, move.targetSquare());
@@ -288,6 +330,11 @@ void Board::unmakeMove(Move move){
     halfMoveCounter = history[ply].halfMoveCounter;
     int8_t captured = history[ply].capturedPiece;
     zobristKey = history[ply].zobristKey;
+    midgameScore[WHITE] = history[ply].midgameScore[WHITE];
+    midgameScore[BLACK] = history[ply].midgameScore[BLACK];
+    endgameScore[WHITE] = history[ply].endgameScore[WHITE];
+    endgameScore[BLACK] = history[ply].endgameScore[BLACK];
+    gamePhase           = history[ply].gamePhase;
 
     int movedEntry = mailbox[move.targetSquare()];
     Color movedColor = mailboxColor(movedEntry);
