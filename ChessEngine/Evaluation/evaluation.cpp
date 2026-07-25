@@ -1,7 +1,6 @@
 #include "evaluation.h"
 
 void InitEvaluation() {
-    // Array of pointers to your existing camelCase PSTs
     const int* mgPsts[6] = {
         mgPawnTable, mgKnightTable, mgBishopTable,
         mgRookTable, mgQueenTable,  mgKingTable

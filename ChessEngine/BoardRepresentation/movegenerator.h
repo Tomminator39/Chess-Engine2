@@ -14,6 +14,10 @@ struct CheckInfo{
 
 void PrecomputeMoveData();
 
+Move stringToMove(std::string moveString, Board& board);
+
+bool isEnPassantCapturable(const Board& board);
+
 bool isInCheck(const Board& board, Color side);
 
 CheckInfo getCheckInfo(const Board& board);

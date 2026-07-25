@@ -11,6 +11,16 @@ add_executable(ChessEngine
     Evaluation/evaluation.cpp
     BoardRepresentation/zobrist.cpp
     engine.cpp
+    Search/openingbook.cpp
 )
 
 target_compile_options(ChessEngine PRIVATE -O3)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Resources 
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+if(WIN32)
+    if(MINGW)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+    endif()
+endif()

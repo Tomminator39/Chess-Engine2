@@ -1,6 +1,7 @@
 #pragma once
 #include "BoardRepresentation/board.h"
 #include "Search/search.h"
+#include "Search/openingbook.h"
 #include <thread>
 #include <algorithm>
 

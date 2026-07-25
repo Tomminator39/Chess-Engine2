@@ -14,7 +14,7 @@ int main() {
 
     Board board;
     board.LoadPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    Searcher searcher(128);
+    Searcher searcher(128, "Resources/Book.txt");
 
     std::thread searchThread;
     std::string line;

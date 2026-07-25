@@ -100,6 +100,73 @@ void Board::LoadPositionFromFen(const std::string& fen){
     }
 }
 
+std::string Board::BoardToFEN(){
+    std::string fen = "";
+
+    for (int rank = 7; rank >= 0; rank--) {
+        int emptyCount = 0;
+
+        for (int file = 0; file < 8; file++) {
+            int square = rank * 8 + file;
+            int8_t pieceEntry = mailbox[square];
+
+            if (pieceEntry == -1) {
+                emptyCount++;
+            } else {
+                if (emptyCount > 0) {
+                    fen += std::to_string(emptyCount);
+                    emptyCount = 0;
+                }
+                Color pieceColor = mailboxColor(pieceEntry);
+                PieceType pieceType = mailboxType(pieceEntry);
+                fen.push_back(pieceChars[pieceColor][pieceType]);
+            }
+        }
+
+        if (emptyCount > 0) {
+            fen += std::to_string(emptyCount);
+        }
+
+        if (rank > 0) {
+            fen.push_back('/');
+        }
+    }
+
+    fen += (turn == WHITE) ? " w " : " b ";
+
+    std::string castlingStr = "";
+    if (castlingRights & WHITE_KINGSIDE)  castlingStr.push_back('K');
+    if (castlingRights & WHITE_QUEENSIDE) castlingStr.push_back('Q');
+    if (castlingRights & BLACK_KINGSIDE)  castlingStr.push_back('k');
+    if (castlingRights & BLACK_QUEENSIDE) castlingStr.push_back('q');
+
+    fen += castlingStr.empty() ? "-" : castlingStr;
+
+    if (enPassantSquare != -1) {
+        fen.push_back(' ');
+        int file = enPassantSquare % 8;
+        int rank = enPassantSquare / 8;
+        fen.push_back(static_cast<char>('a' + file));
+        fen.push_back(static_cast<char>('1' + rank));
+    } else {
+        fen += " -";
+    }
+
+    fen += " " + std::to_string(halfMoveCounter) + " " + std::to_string(fullMoveCounter);
+
+    return fen;
+}
+
+Square Board::stringToSquare(const std::string& sqStr) {
+    char file = std::toupper(sqStr[0]); // 'A' - 'H'
+    char rank = sqStr[1];               // '1' - '8'
+
+    int fileIdx = file - 'A';
+    int rankIdx = rank - '1';
+
+    return static_cast<Square>(rankIdx * 8 + fileIdx);
+}
+
 void Board::togglePieceKey(Color color, PieceType piece, int square){
     zobristKey ^= allZobristKeys[(color * 6 + piece) * 64 + square];
 }
@@ -135,6 +202,14 @@ inline void Board::removePiece(Color color, PieceType piece, int square){
     midgameScore[color] -= mgPst[piece][color][square];
     endgameScore[color] -= egPst[piece][color][square];
     gamePhase -= phaseValues[piece];
+}
+
+bool Board::isRepetition(){
+    int limit = ply - halfMoveCounter;
+    for(int i = ply - 2; i >= limit && i >= 0; i -= 2){
+        if(history[i].zobristKey == zobristKey) return true;
+    }
+    return false;
 }
 
 void Board::makeMove(Move move){

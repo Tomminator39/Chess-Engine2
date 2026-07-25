@@ -1,5 +1,83 @@
 #include "search.h"
 
+std::string moveToString(const Move& move) {
+    if (move.data == 0) {
+        return "0000";
+    }
+
+    int fsq = move.fromSquare();
+    int tsq = move.targetSquare();
+
+    char fromFile = 'a' + (fsq % 8);
+    char fromRank = '1' + (fsq / 8);
+    char toFile   = 'a' + (tsq % 8);
+    char toRank   = '1' + (tsq / 8);
+
+    std::string str = "";
+    str += fromFile;
+    str += fromRank;
+    str += toFile;
+    str += toRank;
+
+    if (move.isPromotion()) {
+        int flags = move.flags();
+        if (flags == FLAG_PROMOTION_KNIGHT || flags == FLAG_PROM_CAPT_KNIGHT) {
+            str += 'n';
+        } else if (flags == FLAG_PROMOTION_BISHOP || flags == FLAG_PROM_CAPT_BISHOP) {
+            str += 'b';
+        } else if (flags == FLAG_PROMOTION_ROOK || flags == FLAG_PROM_CAPT_ROOK) {
+            str += 'r';
+        } else if (flags == FLAG_PROMOTION_QUEEN || flags == FLAG_PROM_CAPT_QUEEN) {
+            str += 'q';
+        }
+    }
+
+    return str;
+}
+
+std::string FormatScore(int score) {
+    if (isMateScore(score)) {
+        int pliesToMate = MATE_VALUE - abs(score);
+        int movesToMate = (pliesToMate + 1) / 2;
+        if (score < 0) movesToMate = -movesToMate;
+        return "mate " + std::to_string(movesToMate);
+    }
+    return "cp " + std::to_string(score);
+}
+
+void Searcher::printInfoString(int depth, int score, uint64_t time_ms){
+    uint64_t nps = (time_ms > 0) ? (nodeCount * 1000 / time_ms) : 0;
+
+    std::string scoreString = FormatScore(score);
+
+    std::cout << "info depth " << depth << " score " << scoreString << " nodes " << nodeCount << " nps " << nps << " time " << time_ms << " pv ";
+    for (int i = 0; i < pvLength[0]; i++) {
+        std::cout << moveToString(pvTable[0][i]) << " ";
+    }
+
+    std::cout << std::endl;
+}
+
+void PrintBookInfoLine(const Board& board, Move bookMove){
+    int eval = Evaluate(board);
+    std::cout << "info depth 1 score " << FormatScore(eval)
+               << " nodes 0 time 0 pv " << moveToString(bookMove) << std::endl;
+}
+
+std::string GetBookLookupKey(Board& board){
+    std::string fen = board.BoardToFEN();
+
+    if (isEnPassantCapturable(board)) {
+        return fen;
+    }
+
+    std::istringstream iss(fen);
+    std::string pieces, side, castling, ep, halfmove, fullmove;
+    iss >> pieces >> side >> castling >> ep >> halfmove >> fullmove;
+
+    return pieces + " " + side + " " + castling + " - " + halfmove + " " + fullmove;
+}
+
 size_t TranspositionTable::calculateTableSize(size_t megabytes) {
     size_t bytes = megabytes * 1024 * 1024;
     size_t entrySize = sizeof(TranspositionEntry);
@@ -110,9 +188,15 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
     
     if(stopSearch) return 0;
 
+    pvLength[ply] = 0;
+
+    if(ply > 0 && (board.isRepetition() || board.halfMoveCounter >= 100)) return 0; //TODO: Add contempt here
+
     // If in check generateMoves (later change to specific check-evasion generator) else only generate captures
     ProbeResult evalCheck = transpositionTable.Probe(board.zobristKey, 0, alpha, beta, ply);
-    if(ply > 0 && evalCheck.cutoff){
+    
+    bool isPvNode = (beta - alpha) > 1;
+    if(!isPvNode && ply > 0 && evalCheck.cutoff){
         return evalCheck.score;
     }
 
@@ -184,6 +268,12 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
                 bestMoveThisIteration = move;
                 bestEvalThisIteration = eval;
             }
+
+            pvTable[ply][0] = move;
+            for(int j = 0; j < pvLength[ply + 1]; j++){
+                pvTable[ply][j + 1] = pvTable[ply + 1][j];
+            }
+            pvLength[ply] = pvLength[ply + 1] + 1;
         }
     }
 
@@ -207,12 +297,16 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
     
     if(stopSearch) return 0;
 
+    pvLength[ply] = 0;
+
+    if(ply > 0 && (board.isRepetition() || board.halfMoveCounter >= 100)) return 0; //TODO: Add contempt here
+
     if(depth == 0) return Quiescence(board, alpha, beta, ply);
 
-    //TODO: Detect draw by repetition (dont forget to add this to quiescence?)
-
     ProbeResult evalCheck = transpositionTable.Probe(board.zobristKey, depth, alpha, beta, ply);
-    if(ply > 0 && evalCheck.cutoff){
+    
+    bool isPvNode = (beta - alpha) > 1;
+    if(!isPvNode && ply > 0 && evalCheck.cutoff){
         return evalCheck.score;
     }
 
@@ -273,6 +367,12 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
                 bestMoveThisIteration = move;
                 bestEvalThisIteration = eval;
             }
+
+            pvTable[ply][0] = move;
+            for(int j = 0; j < pvLength[ply + 1]; j++){
+                pvTable[ply][i + j] = pvTable[ply + 1][j];
+            }
+            pvLength[ply] = pvLength[ply + 1] + 1;
         }
     }
 
@@ -291,8 +391,21 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
 }
 
 Move Searcher::startSearch(Board& board, int timeLimitMS){
+    std::string currentFen = GetBookLookupKey(board);
+    std::string bookMoveString;
+
+    if (openingBook.TryGetBookMove(currentFen, bookMoveString)) {
+        Move bookMove = stringToMove(bookMoveString, board);
+        if (bookMove.data != 0) {
+            PrintBookInfoLine(board, bookMove);
+            return bookMove;
+        }
+    }
+
     stopSearch = false; // Stop a true from a previous search from cancelling a new search
-    deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeLimitMS);
+    nodeCount = 0;
+    auto searchStartTime = std::chrono::steady_clock::now();
+    deadline = searchStartTime + std::chrono::milliseconds(timeLimitMS);
 
     // Iterative deepening loop
     for(int searchDepth = 1; searchDepth < 64; searchDepth++){ // 64 is essentially infinite, but time control should stop a search
@@ -303,6 +416,10 @@ Move Searcher::startSearch(Board& board, int timeLimitMS){
         if(bestMoveThisIteration.data != 0){
             bestMove = bestMoveThisIteration;
             bestEval = bestEvalThisIteration;
+
+            auto currentTime = std::chrono::steady_clock::now();
+            auto timeSpentMS = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - searchStartTime).count();
+            printInfoString(searchDepth, bestEval, timeSpentMS);
         }
 
         if(stopSearch){

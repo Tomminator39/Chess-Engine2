@@ -153,16 +153,13 @@ void generatePawnMoves(const Board& board, MoveList& moveList, int startSquare, 
         if (promotionRank == targetSquare / 8) {
             move.setTargetSquare(targetSquare);
 
-            // 2. Grab a pointer to the destination in the move list
             Move* dst = &moveList.moves[moveList.count];
 
-            // 3. Directly write the 4 promotion moves using sequential flags
             move.setFlags(FLAG_PROMOTION_KNIGHT); dst[0] = move;
             move.setFlags(FLAG_PROMOTION_BISHOP); dst[1] = move;
             move.setFlags(FLAG_PROMOTION_ROOK);   dst[2] = move;
             move.setFlags(FLAG_PROMOTION_QUEEN);  dst[3] = move;
 
-            // 4. Update the count once
             moveList.count += 4;
         } else {
             // Standard quiet single-push pawn move
@@ -259,6 +256,32 @@ if(board.turn == WHITE){
     addCastle(E8, G8, BLACK_KINGSIDE,  {F8, G8},    {E8, F8, G8});
     addCastle(E8, C8, BLACK_QUEENSIDE, {B8, C8, D8}, {E8, D8, C8});
 }
+}
+
+Move stringToMove(std::string moveString, Board& board){
+    Square fromSquare = board.stringToSquare(moveString.substr(0, 2));
+    Square targetSquare = board.stringToSquare(moveString.substr(2, 2));
+
+    MoveList moves = generateMoves(board);
+
+    for(int i = 0; i < moves.count; i++){
+        Move move = moves.moves[i];
+
+        if(move.fromSquare() == fromSquare && move.targetSquare() == targetSquare){
+            return move;
+        }
+    }
+
+    return Move();
+}
+
+bool isEnPassantCapturable(const Board& board){
+    if(board.enPassantSquare == -1) return false;
+
+    Color sideToMove = board.turn;
+    uint64_t potentialCapturers = pawnAttacks[!sideToMove][board.enPassantSquare] & board.pieceBB[sideToMove][PAWN];
+
+    return potentialCapturers != 0;
 }
 
 bool isInCheck(const Board& board, Color side){

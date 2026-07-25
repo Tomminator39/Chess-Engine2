@@ -2,3 +2,4 @@ build/
 snapshots/
 .vscode/*
 !.vscode/tasks.json
+books/

@@ -18,41 +18,6 @@ void stopAndJoinIfRunning(std::thread& searchThread, Searcher& searcher){
     }
 }
 
-std::string moveToString(const Move& move) {
-    if (move.data == 0) {
-        return "0000";
-    }
-
-    int fsq = move.fromSquare();
-    int tsq = move.targetSquare();
-
-    char fromFile = 'a' + (fsq % 8);
-    char fromRank = '1' + (fsq / 8);
-    char toFile   = 'a' + (tsq % 8);
-    char toRank   = '1' + (tsq / 8);
-
-    std::string str = "";
-    str += fromFile;
-    str += fromRank;
-    str += toFile;
-    str += toRank;
-
-    if (move.isPromotion()) {
-        int flags = move.flags();
-        if (flags == FLAG_PROMOTION_KNIGHT || flags == FLAG_PROM_CAPT_KNIGHT) {
-            str += 'n';
-        } else if (flags == FLAG_PROMOTION_BISHOP || flags == FLAG_PROM_CAPT_BISHOP) {
-            str += 'b';
-        } else if (flags == FLAG_PROMOTION_ROOK || flags == FLAG_PROM_CAPT_ROOK) {
-            str += 'r';
-        } else if (flags == FLAG_PROMOTION_QUEEN || flags == FLAG_PROM_CAPT_QUEEN) {
-            str += 'q';
-        }
-    }
-
-    return str;
-}
-
 void parsePosition(Board& board, std::istringstream& ss) {
     std::string token;
     if (!(ss >> token)) return;
@@ -91,13 +56,13 @@ int parseGo(Board& board, std::istringstream& ss){
     int movetime = 0;
 
     while(ss >> token){
-        if(token == "depth") ss >> depth; // TODO: Actually implement this
+        if(token == "depth") ss >> depth; // TODO: Actually implement this, or not idk if it's useful tbf
         else if(token == "movetime") ss >> movetime;
         else if(token == "wtime") ss >> wtime;
         else if(token == "btime") ss >> btime;
         else if(token == "winc") ss >> winc;
         else if(token == "binc") ss >> binc;
-        else if(token == "movestogo") ss >> movestogo; //TODO: Actually implement this
+        else if(token == "movestogo") ss >> movestogo;
     }
 
     int timeToSpend = 0;
@@ -109,11 +74,13 @@ int parseGo(Board& board, std::istringstream& ss){
     } else if(myTime > 0){
         timeToSpend = myTime / 20 + myInc / 2;
         timeToSpend = std::min(timeToSpend, myTime / 2);
+    } else if(movestogo > 0){
+        timeToSpend = myTime / (movestogo + 2);
     } else {
-        timeToSpend = 1000;
+        timeToSpend = 3000;
     }
 
-    return timeToSpend;
+    return std::max(0, timeToSpend - 200); // 200 is a safety margin for overhead.
 }
 
 void readCommand(const std::string& command, Board& board, std::istringstream& ss, Searcher& searcher, std::thread& searchThread){

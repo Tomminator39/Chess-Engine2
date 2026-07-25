@@ -118,6 +118,10 @@ class Board{
         int gamePhase;
 
         void LoadPositionFromFen(const std::string& fen);
+        std::string BoardToFEN();
+        Square stringToSquare(const std::string& sqStr);
+
+        bool isRepetition();
 
         // These are here and not in the zobrist script so that board doesn't have to be passed through them and so also makeMove
         void togglePieceKey(Color color, PieceType piece, int square);

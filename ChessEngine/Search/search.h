@@ -2,10 +2,13 @@
 #include "../Evaluation/evaluation.h"
 #include "../BoardRepresentation/board.h"
 #include "../BoardRepresentation/movegenerator.h"
+#include "openingbook.h"
 #include<bit>
 #include<chrono>
 #include<utility>
 #include<atomic>
+#include<iostream>
+#include<string>
 
 constexpr int INF = 32001;
 constexpr int MATE_VALUE = 32000;
@@ -16,6 +19,8 @@ enum class TTFlag : uint8_t { EXACT, LOWER_BOUND, UPPER_BOUND };
 inline bool isMateScore(int score) {
     return abs(score) > MATE_VALUE - MAX_PLY;
 }
+
+std::string moveToString(const Move& move);
 
 struct TranspositionEntry{
     uint64_t hash; //TODO: Size this down to either 16 or 32 bits, and then also do the cache line bucket stuff
@@ -51,7 +56,7 @@ class TranspositionTable{
 
 class Searcher {
     public:
-        Searcher(int ttMegabytes) : transpositionTable(ttMegabytes){}
+        Searcher(int ttMegabytes, const std::string& bookFilePath) : transpositionTable(ttMegabytes), openingBook(loadFileToString(bookFilePath)) {}
 
         Move startSearch(Board& board, int timeLimitMS);
 
@@ -59,6 +64,8 @@ class Searcher {
         void Reset(){ bestMove.data = 0; nodeCount = 0; bestEval = 0; std::fill(transpositionTable.entries.begin(), transpositionTable.entries.end(), TranspositionEntry{});; transpositionTable.currentAge = 0;}
 
     private:
+        OpeningBook openingBook;
+
         TranspositionTable transpositionTable; 
 
         Move bestMove{};
@@ -70,6 +77,11 @@ class Searcher {
         long long nodeCount = 0;
         std::chrono::steady_clock::time_point deadline;
 
+        Move pvTable[MAX_PLY][MAX_PLY];
+        int pvLength[MAX_PLY];
+
         int Quiescence(Board& board, int alpha, int beta, int ply);
         int Search(Board& board, int alpha, int beta, int depth, int ply);
+
+        void printInfoString(int depth, int score, uint64_t time_ms);
 };
