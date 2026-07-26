@@ -222,6 +222,7 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
 
     TTFlag evalType = TTFlag::UPPER_BOUND;
     Move bestMoveInCurrentSearch;
+    bool firstMoveSearched = false;
 
     for(int i = 0; i < moves.count; i++){
         // Selection sort for move ordering
@@ -249,8 +250,18 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
         }
 
         legalMoveCount++;
+        int eval;
 
-        int eval = -Quiescence(board, -beta, -alpha, ply + 1);
+        if(!firstMoveSearched){ // PVS
+            eval = -Quiescence(board, -beta, -alpha, ply + 1);
+            firstMoveSearched = true;
+        }
+        else{
+            eval = -Quiescence(board, -alpha - 1, -alpha, ply + 1);
+            if (eval > alpha && eval < beta) {
+                eval = -Quiescence(board, -beta, -alpha, ply + 1);
+            }
+        }
         board.unmakeMove(move);
 
         if(stopSearch) return 0;
@@ -321,6 +332,7 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
 
     TTFlag evalType = TTFlag::UPPER_BOUND;
     Move bestMoveInCurrentSearch;
+    bool firstMoveSearched = false;
 
     for(int i = 0; i < moves.count; i++){
         // Selection sort for move ordering
@@ -349,7 +361,19 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
 
         legalMoveCount++;
 
-        int eval = -Search(board, -beta, -alpha, depth - 1, ply + 1);
+        int eval;
+
+        if(!firstMoveSearched){ // PVS
+            eval = -Search(board, -beta, -alpha, depth - 1, ply + 1);
+            firstMoveSearched = true;
+        }
+        else{
+            eval = -Search(board, -alpha - 1, -alpha, depth - 1, ply + 1);
+            if (eval > alpha && eval < beta) {
+                eval = -Search(board, -beta, -alpha, depth - 1, ply + 1);
+            }
+        }
+
         board.unmakeMove(move);
 
         if(stopSearch) return 0;
@@ -370,7 +394,7 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
 
             pvTable[ply][0] = move;
             for(int j = 0; j < pvLength[ply + 1]; j++){
-                pvTable[ply][i + j] = pvTable[ply + 1][j];
+                pvTable[ply][j + 1] = pvTable[ply + 1][j];
             }
             pvLength[ply] = pvLength[ply + 1] + 1;
         }
@@ -411,7 +435,38 @@ Move Searcher::startSearch(Board& board, int timeLimitMS){
     for(int searchDepth = 1; searchDepth < 64; searchDepth++){ // 64 is essentially infinite, but time control should stop a search
         bestMoveThisIteration.data = 0;
         bestEvalThisIteration = -INF;
-        Search(board, -INF, INF, searchDepth, 0);
+
+        int alpha, beta, delta = 30;
+
+        if(searchDepth == 1 || isMateScore(bestEval)){ // Prevent widening the window around a mate score since it arbitrarily large.
+            alpha = -INF;
+            beta = INF;
+        } else {
+            alpha = bestEval - delta;
+            beta = bestEval + delta;
+        }
+
+        int score;
+        while(true){
+            score = Search(board, alpha, beta, searchDepth, 0);
+
+            if(stopSearch) break;
+
+                if(score <= alpha){
+                alpha = std::max(-INF, alpha - delta);
+                delta *= 2;
+            } else if(score >= beta){
+                beta = std::min(INF, beta + delta);
+                delta *= 2;
+            } else {
+                break; // landed inside the window
+            }
+
+            if(isMateScore(score)){ // Same check as earlier
+            alpha = -INF;
+            beta = INF;
+            }
+        }
 
         if(bestMoveThisIteration.data != 0){
             bestMove = bestMoveThisIteration;
