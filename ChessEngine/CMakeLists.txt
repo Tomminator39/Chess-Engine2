@@ -12,6 +12,8 @@ add_executable(ChessEngine
     BoardRepresentation/zobrist.cpp
     engine.cpp
     Search/openingbook.cpp
+    Search/transpositiontable.cpp
+    Search/moveordering.cpp
 )
 
 target_compile_options(ChessEngine PRIVATE -O3)

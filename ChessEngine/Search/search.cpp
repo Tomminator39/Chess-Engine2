@@ -78,107 +78,7 @@ std::string GetBookLookupKey(Board& board){
     return pieces + " " + side + " " + castling + " - " + halfmove + " " + fullmove;
 }
 
-size_t TranspositionTable::calculateTableSize(size_t megabytes) {
-    size_t bytes = megabytes * 1024 * 1024;
-    size_t entrySize = sizeof(TranspositionEntry);
-    
-    size_t maxEntries = bytes / entrySize;
-
-    return std::bit_floor(maxEntries);
-}
-
-void TranspositionTable::Store(uint64_t key, int score, int depth, Move bestMove, TTFlag flag, int ply){
-    size_t index = key & (entries.size() - 1);
-
-    TranspositionEntry& existing = entries[index];
-    if (currentAge == existing.age && (currentAge != existing.age || depth < existing.depth)) return;
-
-    int newScore = score;
-    if (isMateScore(newScore)) {
-        if (newScore > 0) newScore += ply;
-        else newScore -= ply;
-    }
-
-    entries[index] = { key, bestMove, static_cast<int16_t>(newScore), currentAge, static_cast<uint8_t>(depth), flag};
-}
-
-ProbeResult TranspositionTable::Probe(uint64_t key, int depth, int alpha, int beta, int ply){
-    ProbeResult result;
-    result.found = false;
-    result.cutoff = false;
-
-    size_t index = key & (entries.size() - 1);
-    TranspositionEntry& existing = entries[index];
-
-    if(existing.hash != key) return result;
-    result.found = true;
-    result.bestMove = existing.bestMove; // For move ordering
-
-    int score = existing.score;
-    if (isMateScore(score)) {
-        if (score > 0) score -= ply;
-        else score += ply;
-    }
-
-    if (existing.depth >= depth) {
-        
-        if (existing.flag == TTFlag::EXACT) {
-            result.score = score;
-            result.cutoff = true;
-            return result;
-        }
-        
-        if (existing.flag == TTFlag::UPPER_BOUND && score <= alpha) {
-            result.score = alpha; // or score
-            result.cutoff = true;
-            return result;
-        }
-        
-        if (existing.flag == TTFlag::LOWER_BOUND && score >= beta) {
-            result.score = beta; // or score
-            result.cutoff = true;
-            return result;
-        }
-    }
-
-    return result;
-}
-
-void scoreMoves(Board& board, MoveList& moves, Move priorityMove, int* scores){ // Instead of one order moves function, this function scores each move and then SelectBestMove handles selection sort.
-    for(int i = 0; i < moves.count; i++){
-        Move move = moves.moves[i];
-
-        if(move.data == priorityMove.data && priorityMove.data != 0){
-            scores[i] = INF;
-            continue;
-        }
-
-        if(move.isCapture()){
-            int victimSquare = (move.flags() == FLAG_EN_PASSANT) ? ((board.turn == WHITE) ? move.targetSquare() - 8 : move.targetSquare() + 8) : move.targetSquare();
-            int8_t victimPiece = board.mailbox[victimSquare];
-            int8_t attackerPiece = board.mailbox[move.fromSquare()];
-            int victimValue = pieceValues[mailboxType(victimPiece)];
-            int attackerValue = pieceValues[mailboxType(attackerPiece)];
-
-            scores[i] = victimValue * 10 - attackerValue;
-        }
-        else{
-            scores[i] = 0;
-        }
-    }
-}
-
-int selectBestMoveIndex(int* scores, int i, int count){
-    int bestIndex = i;
-    for(int j = i; j < count; j++){
-        if(scores[j] > scores[bestIndex]){
-            bestIndex = j;
-        }
-    }
-    return bestIndex;
-}
-
-int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
+int Searcher::Quiescence(Board& board, int alpha, int beta, int ply, Move previousMove){
     nodeCount++;
     if (nodeCount % 2048 == 0){
         if(std::chrono::steady_clock::now() >= deadline){
@@ -218,7 +118,7 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
     // Move ordering
     Move priorityMove = ply == 0 ? bestMove : (evalCheck.found ? evalCheck.bestMove : Move());
     int scores[256]; 
-    scoreMoves(board, moves, priorityMove, scores);
+    moveOrderer.ScoreMoves(board, moves, priorityMove, scores, ply, previousMove);
 
     TTFlag evalType = TTFlag::UPPER_BOUND;
     Move bestMoveInCurrentSearch;
@@ -232,6 +132,11 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
 
         Move move = moves.moves[i];
         Color mover = board.turn;
+
+        if(!info.inCheck && move.data != priorityMove.data 
+            && move.isCapture() && scores[i] < SCORE_QUIET){
+                break; // this and all subsequent moves are worse (scores are sorted)
+            }
         
         int fromPiece = board.mailbox[move.fromSquare()];
         PieceType movedType = mailboxType(fromPiece);
@@ -249,17 +154,21 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
             }
         }
 
+        if(!move.isCapture()){
+            moveOrderer.RecordAttempt(mover, move);
+        }
+
         legalMoveCount++;
         int eval;
 
         if(!firstMoveSearched){ // PVS
-            eval = -Quiescence(board, -beta, -alpha, ply + 1);
+            eval = -Quiescence(board, -beta, -alpha, ply + 1, move);
             firstMoveSearched = true;
         }
         else{
-            eval = -Quiescence(board, -alpha - 1, -alpha, ply + 1);
+            eval = -Quiescence(board, -alpha - 1, -alpha, ply + 1, move);
             if (eval > alpha && eval < beta) {
-                eval = -Quiescence(board, -beta, -alpha, ply + 1);
+                eval = -Quiescence(board, -beta, -alpha, ply + 1, move);
             }
         }
         board.unmakeMove(move);
@@ -267,6 +176,8 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
         if(stopSearch) return 0;
 
         if(eval >= beta){
+            moveOrderer.RecordCutoff(move, ply, 1, mover);
+            moveOrderer.RecordCounter(previousMove, move, mover == WHITE ? BLACK : WHITE);
             transpositionTable.Store(board.zobristKey, beta, 0, move, TTFlag::LOWER_BOUND, ply);
             return beta;
         }
@@ -298,7 +209,7 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply){
     return alpha;
 }
 
-int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
+int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move previousMove){
     nodeCount++;
     if (nodeCount % 2048 == 0){
         if(std::chrono::steady_clock::now() >= deadline){
@@ -312,7 +223,7 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
 
     if(ply > 0 && (board.isRepetition() || board.halfMoveCounter >= 100)) return 0; //TODO: Add contempt here
 
-    if(depth == 0) return Quiescence(board, alpha, beta, ply);
+    if(depth == 0) return Quiescence(board, alpha, beta, ply, previousMove);
 
     ProbeResult evalCheck = transpositionTable.Probe(board.zobristKey, depth, alpha, beta, ply);
     
@@ -328,7 +239,7 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
     // Move ordering
     Move priorityMove = ply == 0 ? bestMove : (evalCheck.found ? evalCheck.bestMove : Move());
     int scores[256]; 
-    scoreMoves(board, moves, priorityMove, scores);
+    moveOrderer.ScoreMoves(board, moves, priorityMove, scores, ply, previousMove);
 
     TTFlag evalType = TTFlag::UPPER_BOUND;
     Move bestMoveInCurrentSearch;
@@ -342,11 +253,11 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
 
         Move move = moves.moves[i];
         Color mover = board.turn;
-        
+
         int fromPiece = board.mailbox[move.fromSquare()];
         PieceType movedType = mailboxType(fromPiece);
 
-        if(__builtin_popcountll(info.checkers) >= 2 && movedType != KING){
+        if(__builtin_popcountll(info.checkers) >= 2 && movedType != KING){ // Legality checking
             continue;
         }
 
@@ -359,18 +270,22 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
             }
         }
 
+        if(!move.isCapture()){
+            moveOrderer.RecordAttempt(mover, move);
+        }
+
         legalMoveCount++;
 
         int eval;
 
         if(!firstMoveSearched){ // PVS
-            eval = -Search(board, -beta, -alpha, depth - 1, ply + 1);
+            eval = -Search(board, -beta, -alpha, depth - 1, ply + 1, move);
             firstMoveSearched = true;
         }
         else{
-            eval = -Search(board, -alpha - 1, -alpha, depth - 1, ply + 1);
+            eval = -Search(board, -alpha - 1, -alpha, depth - 1, ply + 1, move);
             if (eval > alpha && eval < beta) {
-                eval = -Search(board, -beta, -alpha, depth - 1, ply + 1);
+                eval = -Search(board, -beta, -alpha, depth - 1, ply + 1, move);
             }
         }
 
@@ -379,6 +294,8 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply){
         if(stopSearch) return 0;
 
         if(eval >= beta){
+            moveOrderer.RecordCutoff(move, ply, depth, mover);
+            moveOrderer.RecordCounter(previousMove, move, mover == WHITE ? BLACK : WHITE);
             transpositionTable.Store(board.zobristKey, beta, depth, move, TTFlag::LOWER_BOUND, ply);
             return beta;
         }
@@ -428,6 +345,7 @@ Move Searcher::startSearch(Board& board, int timeLimitMS){
 
     stopSearch = false; // Stop a true from a previous search from cancelling a new search
     nodeCount = 0;
+    moveOrderer.DecayHistory();
     auto searchStartTime = std::chrono::steady_clock::now();
     deadline = searchStartTime + std::chrono::milliseconds(timeLimitMS);
 
@@ -447,8 +365,8 @@ Move Searcher::startSearch(Board& board, int timeLimitMS){
         }
 
         int score;
-        while(true){
-            score = Search(board, alpha, beta, searchDepth, 0);
+        while(true){ // Aspiration Window
+            score = Search(board, alpha, beta, searchDepth, 0, Move());
 
             if(stopSearch) break;
 

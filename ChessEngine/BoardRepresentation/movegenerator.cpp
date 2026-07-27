@@ -224,13 +224,10 @@ bool isSquareAttacked(const Board& board, int testedSquare, Color attackedSide){
         }
     }
 
-    // Knight
     if(knightAttacks[testedSquare] & board.pieceBB[!attackedSide][KNIGHT]) return true;
 
-    // King
     if(kingAttacks[testedSquare] & board.pieceBB[!attackedSide][KING]) return true;
 
-    // Pawns
     if(pawnAttacks[attackedSide][testedSquare] & board.pieceBB[!attackedSide][PAWN]) return true;
 
     return false;
@@ -355,6 +352,38 @@ CheckInfo getCheckInfo(const Board& board){
     info.inCheck = (info.checkers != 0);
 
     return info;
+}
+
+uint64_t attackersTo(const Board& board, int square, uint64_t occupied) { // Get all attackers of a square for SEE
+    uint64_t attackers = 0ULL;
+
+    attackers |= knightAttacks[square] & (board.pieceBB[WHITE][KNIGHT] | board.pieceBB[BLACK][KNIGHT]) & occupied;
+    attackers |= kingAttacks[square]   & (board.pieceBB[WHITE][KING]   | board.pieceBB[BLACK][KING])   & occupied;
+    attackers |= pawnAttacks[BLACK][square] & board.pieceBB[WHITE][PAWN] & occupied;
+    attackers |= pawnAttacks[WHITE][square] & board.pieceBB[BLACK][PAWN] & occupied;
+
+    for (int directionIndex = 0; directionIndex < 8; directionIndex++) {
+        for (int n = 0; n < squaresToEdge[square][directionIndex]; n++) {
+            int targetSquare = square + directionCompass[directionIndex] * (n + 1);
+
+            if (occupied & (1ULL << targetSquare)) {
+                int pieceType = mailboxType(board.mailbox[targetSquare]);
+
+                if (directionIndex < 4) {
+                    if (pieceType == ROOK || pieceType == QUEEN) {
+                        attackers |= (1ULL << targetSquare);
+                    }
+                } 
+                else {
+                    if (pieceType == BISHOP || pieceType == QUEEN) {
+                        attackers |= (1ULL << targetSquare);
+                    }
+                }
+                break; 
+            }
+        }
+    }
+    return attackers;
 }
 
 MoveList generateMoves(Board& board, bool onlyGenerateCaptures){

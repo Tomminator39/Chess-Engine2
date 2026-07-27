@@ -2,7 +2,7 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List:
 
-- improve move ordering with see and heuristics
+- LMR
 ---------------------
 Current Features:
 
@@ -15,8 +15,9 @@ Search:
 - Transposition Tables
 - Iterative Deepening
 - Quiescence Search
-- MVV-LVA
+- SEE + MVV-LVA
 - PVS and aspiration windows
+- Killer Move, Relative History, and Countermove Heuristics 
 
 Evaluation:
 - Count Material
@@ -28,13 +29,16 @@ Future Improvements:
 Move Generation:
 - Magic Bitboards
 
-Search:
-- Killer Move Heuristic
-- Countermove Heuristic
-- Butterfly History Heuristic
-- Aspiration Windows
-- Principal Variation Search -> Read this: https://www.chessprogramming.org/PVS_and_Aspiration
-- idk man just follow improved connorpasta
+Search: (Just follow connorpasta?)
+- Late Move Reductions
+- Null Move Pruning
+- RFP
+- Extensions
+- SEE pruning in main search (also need early exit SEE for this!)
+
+Move Ordering:
+- Continuation History Heuristcs (CounterMove heuristics is the 1-ply version of this I believe.)
+- Capture History
 
 Evaluation:
 - PSQ optimized with texel tuning
@@ -44,11 +48,9 @@ Evaluation:
 Version Descriptions:
 
 TCE_v1: bitboards, attack tables, negamax with alphabeta, iterative deepening, quiescence search, transposition tables, mvv-lva, piece square tables, tapered eval, opening book. pvs, aspiration windows.
-TCE_v2: 
+TCE_v2: killer move, relative history, and countermove heuristics
 
 ---------------------
 Fastchess test command:
 
-fastchess -engine cmd="path" name="TCE_Current" -engine cmd="path" name="TCE_v1" -openings file="C:\Users\Tomhi\Documents\GitHub\Chess-Engine2\books\8moves_v3.pgn" format=pgn order=random -each tc=10+1.0 proto=uci -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -rounds 5000 -repeat -concurrency 4 -recover -draw movenumber=30 movecount=6 score=15 -resign movecount=3 score=500
-
-fastchess -engine cmd="path" name="TCE_Current" -engine cmd="C:\Users\Tomhi\Documents\GitHub\Chess-Engine2\snapshots\Pre-PVS.exe" name="Pre-PVS" -openings file="C:\Users\Tomhi\Documents\GitHub\Chess-Engine2\books\8moves_v3.pgn" format=pgn order=random -each tc=10+1.0 proto=uci -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -rounds 5000 -repeat -concurrency 4 -recover -draw movenumber=30 movecount=6 score=15 -resign movecount=3 score=500
+fastchess -engine cmd="C:\Users\Tomhi\Documents\GitHub\Chess-Engine2\build\ChessEngine.exe" name="TCE_Current" -engine cmd="C:\Users\Tomhi\Documents\GitHub\Chess-Engine2\snapshots\TCE_v1.exe" name="TCE_v1" -openings file="C:\Users\Tomhi\Documents\GitHub\Chess-Engine2\books\8moves_v3.pgn" format=pgn order=random -each tc=10+1.0 proto=uci -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -rounds 5000 -repeat -concurrency 6 -recover -draw movenumber=30 movecount=6 score=15 -resign movecount=3 score=500
