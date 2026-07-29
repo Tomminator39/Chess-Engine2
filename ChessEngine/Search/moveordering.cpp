@@ -18,6 +18,10 @@ constexpr PieceType promotionPieceType(Move move) {
     return table[move.flags() & 0x3];
 }
 
+bool MoveOrderer::IsKiller(Move move, int ply){
+    return move.data == killerMoves[ply][0].data || move.data == killerMoves[ply][1].data;
+}
+
 void MoveOrderer::RecordAttempt(Color color, Move move){
     historyTotal[color][move.fromSquare()][move.targetSquare()]++;
 }

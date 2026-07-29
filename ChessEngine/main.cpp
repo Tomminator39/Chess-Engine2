@@ -5,6 +5,7 @@
 #include "BoardRepresentation/zobrist.h"
 #include "Evaluation/evaluation.h"
 #include "Search/search.h"
+#include "Search/moveordering.h"
 #include "engine.h"
 
 int main() {

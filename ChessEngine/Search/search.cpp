@@ -45,6 +45,14 @@ std::string FormatScore(int score) {
     return "cp " + std::to_string(score);
 }
 
+void Searcher::InitLMRTable(){ // Should change the values of a and b at some point with SPSA or texel tuning
+    for(int d = 1; d < MAX_PLY; d++){
+        for(int m = 1; m < 256; m++){
+            lmrTable[d][m] = static_cast<int>(0.5 + log(d) * log(m) / 2.5);
+        }
+    }
+}
+
 void Searcher::printInfoString(int depth, int score, uint64_t time_ms){
     uint64_t nps = (time_ms > 0) ? (nodeCount * 1000 / time_ms) : 0;
 
@@ -278,13 +286,26 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
 
         int eval;
 
+        int reduction = 0;
+
+        // Grab LMR reduction from table
+        if(firstMoveSearched && depth >= 3 && !move.isCapture() && !move.isPromotion() && !info.inCheck && !isInCheck(board, board.turn) && isPvNode == false){
+            reduction = lmrTable[depth][i];
+            if(moveOrderer.IsKiller(move, ply)) reduction = reduction / 2;  // reduce killers less, but not totally
+            reduction = std::min(reduction, depth - 1);  // never let reduced depth go below 1
+        }
+
         if(!firstMoveSearched){ // PVS
             eval = -Search(board, -beta, -alpha, depth - 1, ply + 1, move);
             firstMoveSearched = true;
         }
         else{
-            eval = -Search(board, -alpha - 1, -alpha, depth - 1, ply + 1, move);
-            if (eval > alpha && eval < beta) {
+            eval = -Search(board, -alpha - 1, -alpha, depth - 1 - reduction, ply + 1, move);
+            if(eval > alpha && reduction > 0){
+                // the reduced search beat alpha so re-search at full depth still null window to confirm
+                eval = -Search(board, -alpha - 1, -alpha, depth - 1, ply + 1, move);
+            }
+            if(eval > alpha && eval < beta){
                 eval = -Search(board, -beta, -alpha, depth - 1, ply + 1, move);
             }
         }
@@ -381,8 +402,8 @@ Move Searcher::startSearch(Board& board, int timeLimitMS){
             }
 
             if(isMateScore(score)){ // Same check as earlier
-            alpha = -INF;
-            beta = INF;
+                alpha = -INF;
+                beta = INF;
             }
         }
 

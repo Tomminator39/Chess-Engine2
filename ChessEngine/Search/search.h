@@ -17,7 +17,7 @@ std::string moveToString(const Move& move);
 
 class Searcher {
     public:
-        Searcher(int ttMegabytes, const std::string& bookFilePath) : transpositionTable(ttMegabytes), openingBook(loadFileToString(bookFilePath)) {}
+        Searcher(int ttMegabytes, const std::string& bookFilePath) : transpositionTable(ttMegabytes), openingBook(loadFileToString(bookFilePath)) {InitLMRTable();}
 
         Move startSearch(Board& board, int timeLimitMS);
 
@@ -48,6 +48,10 @@ class Searcher {
 
         Move pvTable[MAX_PLY][MAX_PLY];
         int pvLength[MAX_PLY];
+        
+        int lmrTable[MAX_PLY][256]; // Precomputed reduction rate for lmr
+
+        void InitLMRTable();
 
         int Quiescence(Board& board, int alpha, int beta, int ply, Move previousMove);
         int Search(Board& board, int alpha, int beta, int depth, int ply, Move previousMove);

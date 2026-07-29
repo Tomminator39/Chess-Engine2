@@ -22,6 +22,7 @@ class MoveOrderer {
         Move counterMove[2][64][64];
 
     public:
+        bool IsKiller(Move move, int ply);
         void RecordAttempt(Color color, Move move);
         void RecordCounter(Move previousMove, Move counterMove, Color color);
         void DecayHistory();
