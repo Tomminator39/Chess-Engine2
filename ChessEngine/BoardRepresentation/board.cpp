@@ -517,6 +517,32 @@ void Board::unmakeMove(Move move){
     turn = (turn == WHITE) ? BLACK : WHITE;
 }
 
+void Board::makeNullMove(){
+    int8_t captured = 0;
+
+    history[ply++] = {castlingRights, enPassantSquare, halfMoveCounter, captured, zobristKey, { midgameScore[WHITE], midgameScore[BLACK] }, { endgameScore[WHITE], endgameScore[BLACK] }, gamePhase};
+
+    if(enPassantSquare != -1){
+        toggleEnPassantKey(enPassantSquare);
+        enPassantSquare = -1;
+    }
+
+    halfMoveCounter++;
+    toggleTurnKey();
+    turn = (turn == WHITE) ? BLACK : WHITE;
+}
+
+void Board::unmakeNullMove(){
+    ply--;
+    
+    castlingRights = history[ply].castlingRights;
+    enPassantSquare = history[ply].enPassantSquare;
+    halfMoveCounter = history[ply].halfMoveCounter;
+    zobristKey = history[ply].zobristKey;
+    
+    turn = (turn == WHITE) ? BLACK : WHITE;
+}
+
 void printBoard(const Board& board){
     for(int guiRank = 7; guiRank >= 0; guiRank--){
         std::cout << "\n";

@@ -54,7 +54,7 @@ class Searcher {
         void InitLMRTable();
 
         int Quiescence(Board& board, int alpha, int beta, int ply, Move previousMove);
-        int Search(Board& board, int alpha, int beta, int depth, int ply, Move previousMove);
+        int Search(Board& board, int alpha, int beta, int depth, int ply, Move previousMove, bool previousWasNullMove = false);
 
         void printInfoString(int depth, int score, uint64_t time_ms);
 };

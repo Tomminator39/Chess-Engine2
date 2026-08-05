@@ -27,7 +27,7 @@ void MoveOrderer::RecordAttempt(Color color, Move move){
 }
 
 void MoveOrderer::RecordCounter(Move previousMove, Move newCounterMove, Color color){
-    if(previousMove.data == 0) return;  // no real previous move (root), nothing to key off
+    if (previousMove.data == 0 || newCounterMove.data == 0) return;  // no real previous move (root), nothing to key off
     counterMove[color][previousMove.fromSquare()][previousMove.targetSquare()] = newCounterMove;
 }
 

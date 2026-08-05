@@ -217,7 +217,7 @@ int Searcher::Quiescence(Board& board, int alpha, int beta, int ply, Move previo
     return alpha;
 }
 
-int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move previousMove){
+int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move previousMove, bool previousWasNullMove){
     nodeCount++;
     if (nodeCount % 2048 == 0){
         if(std::chrono::steady_clock::now() >= deadline){
@@ -241,6 +241,24 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
     }
 
     CheckInfo info = getCheckInfo(board);
+
+    // Null move pruning. before generating moves to possibly save time, but we do need checkinfo
+    bool hasNonPawnMaterial = (board.pieceBB[board.turn][KNIGHT] | board.pieceBB[board.turn][BISHOP] | board.pieceBB[board.turn][ROOK] | board.pieceBB[board.turn][QUEEN]) != 0; // Zugzwang cases
+    if(depth >= 3 && !isPvNode && !info.inCheck && !previousWasNullMove && hasNonPawnMaterial){
+        int R = 3; 
+        board.makeNullMove();
+        int reducedDepth = std::max(0, depth - 1 - R);
+        int nullEval = -Search(board, -beta, -beta + 1, reducedDepth, ply + 1, Move(), true);
+        board.unmakeNullMove();
+
+        if(stopSearch) return 0;
+
+        if(nullEval >= beta){
+            if (nullEval >= MATE_VALUE - MAX_PLY) return beta;
+            return beta;
+        }
+    }
+
     int legalMoveCount = 0;
     MoveList moves = generateMoves(board);
 

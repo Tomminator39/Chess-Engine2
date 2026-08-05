@@ -133,6 +133,9 @@ class Board{
 
         void makeMove(Move move);
         void unmakeMove(Move move);
+
+        void makeNullMove(); // For null move pruning. Could pass a null move to makemove but would add a lot of unneeded checks and unneeded work for making null moves
+        void unmakeNullMove();
 };
 
 inline Color mailboxColor(int entry) { return static_cast<Color>(entry / 6); }
