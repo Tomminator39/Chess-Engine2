@@ -386,6 +386,17 @@ uint64_t attackersTo(const Board& board, int square, uint64_t occupied) { // Get
     return attackers;
 }
 
+uint64_t getPawnAttackBitboard(const Board& board, Color color){
+    uint64_t attacks = 0ULL;
+    uint64_t pawns = board.pieceBB[color][PAWN];
+    while(pawns){
+        int square = __builtin_ctzll(pawns);
+        attacks |= pawnAttacks[color][square];
+        pawns &= pawns - 1;
+    }
+    return attacks;
+}
+
 uint64_t getMobilityBitboard(const Board& board, int square, PieceType piece, Color sideToMove) {
     uint64_t attacks = 0ULL;
     uint64_t occupied = board.occupancy[2];

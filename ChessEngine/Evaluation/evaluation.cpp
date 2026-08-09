@@ -30,16 +30,17 @@ void InitEvaluation() {
     }
 }
 
-MobilityScore CalculateMobility(const Board& board, Color color) { // Does not account for pins, I think it'd be too expensive. 
-    MobilityScore score{0, 0};                                     // I do think I should wire in an updated attack table at some point for safe mobility
-
+MobilityScore CalculateMobility(const Board& board, Color color) {
+    MobilityScore score{0, 0};
+    Color enemy = (color == WHITE) ? BLACK : WHITE;
+    uint64_t enemyPawnAttacks = getPawnAttackBitboard(board, enemy);
     for (PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}) {
         uint64_t pieces = board.pieceBB[color][piece];
 
         while (pieces) {
             int square = __builtin_ctzll(pieces);
-            uint64_t mobility = getMobilityBitboard(board, square, piece, color);
-            int count = __builtin_popcountll(mobility);
+            uint64_t mobility = getMobilityBitboard(board, square, piece, color) & ~enemyPawnAttacks; // I'm counting on SEE in search to check against other pieces since it's quite expensive. 
+            int count = __builtin_popcountll(mobility);                                               // Getting the pawn attacks is very cheap though
             count = std::min(count, 27);
 
             score.mg += mg_Mobility[piece][count];
