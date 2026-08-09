@@ -1,9 +1,44 @@
 #pragma once
 #include "../BoardRepresentation/board.h"
+#include "../BoardRepresentation/movegenerator.h"
 #include <bit>
 #include <algorithm>
 
 constexpr int pieceValues[] = {100, 300, 310, 525, 950, 0}; // pawn, knight, bishop, rook, queen, king
+
+const int mg_Mobility[6][28] = {
+    {}, // pawn, unused
+    // knight (0 to 8 moves)
+    { -15, -5, -1, 2, 5, 7, 9, 11, 13 },
+
+    // bishop (0 to 13 moves)
+    { -25, -11, -6, -1, 3, 6, 9, 12, 14, 17, 19, 21, 23, 25 },
+
+    // rook (0 to 14 moves)
+    { -10, -4, -2, 0, 2, 3, 4, 5, 6, 8, 8, 9, 10, 11, 12 },
+
+    // queen (0 to 27 moves)
+    { -10, -6, -5, -4, -2, -1, -1, 0, 1, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10 },
+
+    {} // king, unused
+};
+
+const int eg_Mobility[6][28] = {
+    {}, // pawn, unused
+    // knight(0 to 8 moves)
+    { -30, -10, -2, 4, 10, 14, 18, 22, 26 },
+
+    // bishop (0 to 13 moves)
+    { -50, -22, -11, -2, 6, 12, 18, 24, 29, 34, 38, 42, 46, 50 },
+
+    // rook (0 to 14 moves)
+    { -50, -22, -11, -2, 6, 12, 18, 24, 29, 34, 38, 42, 46, 50, 54 },
+
+    // queen (0 to 27 moves)
+    { -50, -30, -23, -16, -10, -6, -2, 2, 6, 9, 13, 16, 20, 23, 27, 30, 33, 36, 39, 41, 43, 45, 47, 48, 50, 51, 52, 53 },
+
+    {} // king, unused
+};
 
 inline constexpr int mgPawnTable[64] = {
      18,  18,  18,  18,  18,  18,  18,  18,

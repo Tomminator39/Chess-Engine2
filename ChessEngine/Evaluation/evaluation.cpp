@@ -1,5 +1,9 @@
 #include "evaluation.h"
 
+
+
+struct MobilityScore { int mg; int eg; };
+
 void InitEvaluation() {
     const int* mgPsts[6] = {
         mgPawnTable, mgKnightTable, mgBishopTable,
@@ -26,9 +30,34 @@ void InitEvaluation() {
     }
 }
 
+MobilityScore CalculateMobility(const Board& board, Color color) { // Does not account for pins, I think it'd be too expensive. 
+    MobilityScore score{0, 0};                                     // I do think I should wire in an updated attack table at some point for safe mobility
+
+    for (PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}) {
+        uint64_t pieces = board.pieceBB[color][piece];
+
+        while (pieces) {
+            int square = __builtin_ctzll(pieces);
+            uint64_t mobility = getMobilityBitboard(board, square, piece, color);
+            int count = __builtin_popcountll(mobility);
+            count = std::min(count, 27);
+
+            score.mg += mg_Mobility[piece][count];
+            score.eg += eg_Mobility[piece][count];
+
+            pieces &= pieces - 1;
+        }
+    }
+
+    return score;
+}
+
 int Evaluate(const Board& board) {
-    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK];
-    int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK];
+    MobilityScore whiteMobility = CalculateMobility(board, WHITE);
+    MobilityScore blackMobility = CalculateMobility(board, BLACK);   
+
+    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg);
+    int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] + (whiteMobility.eg - blackMobility.eg);;
 
     // Tapered Eval
     int finalPhase = std::min(256, (board.gamePhase * 256 + 12) / 24);

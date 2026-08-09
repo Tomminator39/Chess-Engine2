@@ -386,6 +386,41 @@ uint64_t attackersTo(const Board& board, int square, uint64_t occupied) { // Get
     return attackers;
 }
 
+uint64_t getMobilityBitboard(const Board& board, int square, PieceType piece, Color sideToMove) {
+    uint64_t attacks = 0ULL;
+    uint64_t occupied = board.occupancy[2];
+
+    switch (piece) {
+        case PAWN: {
+            break;
+        }
+        case KNIGHT: {
+            attacks = knightAttacks[square];
+            break;
+        }
+        case KING: {
+            attacks = kingAttacks[square];
+            break;
+        }
+        case BISHOP:
+        case ROOK:
+        case QUEEN: {
+            int startDir = (piece == BISHOP) ? 4 : 0;
+            int endDir   = (piece == ROOK)   ? 4 : 8;
+
+            for (int dir = startDir; dir < endDir; dir++) {
+                for (int n = 0; n < squaresToEdge[square][dir]; n++) {
+                    int target = square + directionCompass[dir] * (n + 1);
+                    attacks |= (1ULL << target);
+                    if (occupied & (1ULL << target)) break; // blocked
+                }
+            }
+            break;
+        }
+    }
+    return attacks & ~board.occupancy[sideToMove];
+}
+
 MoveList generateMoves(Board& board, bool onlyGenerateCaptures){
     MoveList pseudoLegal;
 

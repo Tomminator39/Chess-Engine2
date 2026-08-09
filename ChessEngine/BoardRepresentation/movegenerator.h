@@ -23,6 +23,7 @@ bool isInCheck(const Board& board, Color side);
 CheckInfo getCheckInfo(const Board& board);
 
 uint64_t attackersTo(const Board& board, int square, uint64_t occupied); // Gets all attackers from both sides on a square. Mainly used for SEE
+u_int64_t getMobilityBitboard(const Board& board, int square, PieceType piece, Color sideToMove);
 
 MoveList generateMoves(Board& board, bool onlyGenerateCaptures = false);
 
