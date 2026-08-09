@@ -1,8 +1,6 @@
 #include "evaluation.h"
 
-
-
-struct MobilityScore { int mg; int eg; };
+struct MgEgScore { int mg; int eg; };
 
 void InitEvaluation() {
     const int* mgPsts[6] = {
@@ -30,8 +28,15 @@ void InitEvaluation() {
     }
 }
 
-MobilityScore CalculateMobility(const Board& board, Color color) {
-    MobilityScore score{0, 0};
+MgEgScore calculateBishopPair(const Board& board, Color color){
+    if(__builtin_popcountll(board.pieceBB[color][BISHOP]) >= 2){
+        return { BISHOP_PAIR_MG, BISHOP_PAIR_EG};
+    }
+    return {0, 0};
+}
+
+MgEgScore CalculateMobility(const Board& board, Color color) {
+    MgEgScore score{0, 0};
     Color enemy = (color == WHITE) ? BLACK : WHITE;
     uint64_t enemyPawnAttacks = getPawnAttackBitboard(board, enemy);
     for (PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}) {
@@ -54,11 +59,14 @@ MobilityScore CalculateMobility(const Board& board, Color color) {
 }
 
 int Evaluate(const Board& board) {
-    MobilityScore whiteMobility = CalculateMobility(board, WHITE);
-    MobilityScore blackMobility = CalculateMobility(board, BLACK);   
+    MgEgScore whiteMobility = CalculateMobility(board, WHITE);
+    MgEgScore blackMobility = CalculateMobility(board, BLACK);
 
-    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg);
-    int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] + (whiteMobility.eg - blackMobility.eg);;
+    MgEgScore whiteBishopPair = calculateBishopPair(board, WHITE);
+    MgEgScore blackBishopPair = calculateBishopPair(board, BLACK);
+
+    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg);
+    int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] + (whiteMobility.eg - blackMobility.eg) + (whiteBishopPair.eg - blackBishopPair.eg);
 
     // Tapered Eval
     int finalPhase = std::min(256, (board.gamePhase * 256 + 12) / 24);

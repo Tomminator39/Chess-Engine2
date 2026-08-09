@@ -2,7 +2,6 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List (not in order per se):
 
-- Mobility + Bishop pair bonus
 - RFP
 - LMP
 - FP
@@ -31,6 +30,7 @@ Evaluation:
 - Count Material
 - Piece Square Tables
 - Tapered Eval
+- Safe Mobility
 --------------------
 Future Improvements:
 
@@ -53,7 +53,6 @@ Move Ordering:
 Evaluation:
 - Pawn Structure improvements
 - King Safety improvements
-- Piece Mobility
 - Texel Tuning values
 ---------------------
 Version Descriptions:
@@ -62,6 +61,7 @@ TCE_v1: bitboards, attack tables, negamax with alphabeta, iterative deepening, q
 TCE_v2: killer move, relative history, and countermove heuristics
 TCE_v3: LMR
 TCE_v4: NMP
+TCE_v5: (safe) Mobility + Bishop pair bonus
 
 ---------------------
 Fastchess test command:
