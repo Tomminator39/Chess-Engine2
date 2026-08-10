@@ -245,11 +245,13 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
     CheckInfo info = getCheckInfo(board);
 
     // Reverse Futility Pruning 
-    if(!isPvNode && !info.inCheck && depth <= 3){ //TODO: Scale based on if the static eval has improved or not
+    if (ply > 0 && !isPvNode && !info.inCheck && depth <= 3){ //TODO: Scale based on if the static eval has improved or not
         int margin = 120 * depth;
         int staticEval = Evaluate(board);
-        if(staticEval - margin >= beta){
-            return beta;
+        if (staticEval - margin >= beta) {
+            if(!isMateScore(beta)){
+                return beta;
+            }
         }
     }
 
@@ -271,6 +273,7 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
     }
 
     int legalMoveCount = 0;
+    int quietMoveCount = 0; // Tracked for LMP  
     MoveList moves = generateMoves(board);
 
     // Move ordering
@@ -290,8 +293,10 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
 
         Move move = moves.moves[i];
         Color mover = board.turn;
+        bool isQuiet = !move.isCapture() && !move.isPromotion();
 
-        if(!isPvNode && info.inCheck && depth <= 5 && !move.isCapture() && !move.isPromotion() && moves.count <= lmpThreshold[depth]){ //TODO: Add !givesCheck somehow, and tune the depth value, and change the move threshhold if the position has improved vs if it hasnt
+        // LMP
+        if(!isPvNode && !info.inCheck && depth <= 5 && isQuiet && !isInCheck(board, board.turn) && !moveOrderer.IsKiller(move, ply) && quietMoveCount >= lmpThreshold[depth]){ //TODO: tune the depth value, and change the move threshhold if the position has improved vs if it hasnt
             continue;
         }
 
@@ -311,11 +316,12 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
             }
         }
 
-        if(!move.isCapture()){
+        legalMoveCount++;
+
+        if (isQuiet) {
+            quietMoveCount++;
             moveOrderer.RecordAttempt(mover, move);
         }
-
-        legalMoveCount++;
 
         int eval;
 
