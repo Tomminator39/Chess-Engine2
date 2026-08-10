@@ -1,5 +1,7 @@
 #include "search.h"
 
+constexpr int lmpThreshold[9] = { 0, 4, 9, 16, 27, 40, 57, 76, 99 };
+
 std::string moveToString(const Move& move) {
     if (move.data == 0) {
         return "0000";
@@ -242,6 +244,15 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
 
     CheckInfo info = getCheckInfo(board);
 
+    // Reverse Futility Pruning 
+    if(!isPvNode && !info.inCheck && depth <= 3){ //TODO: Scale based on if the static eval has improved or not
+        int margin = 120 * depth;
+        int staticEval = Evaluate(board);
+        if(staticEval - margin >= beta){
+            return beta;
+        }
+    }
+
     // Null move pruning. before generating moves to possibly save time, but we do need checkinfo
     bool hasNonPawnMaterial = (board.pieceBB[board.turn][KNIGHT] | board.pieceBB[board.turn][BISHOP] | board.pieceBB[board.turn][ROOK] | board.pieceBB[board.turn][QUEEN]) != 0; // Zugzwang cases
     if(depth >= 3 && !isPvNode && !info.inCheck && !previousWasNullMove && hasNonPawnMaterial){
@@ -279,6 +290,10 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
 
         Move move = moves.moves[i];
         Color mover = board.turn;
+
+        if(!isPvNode && info.inCheck && depth <= 5 && !move.isCapture() && !move.isPromotion() && moves.count <= lmpThreshold[depth]){ //TODO: Add !givesCheck somehow, and tune the depth value, and change the move threshhold if the position has improved vs if it hasnt
+            continue;
+        }
 
         int fromPiece = board.mailbox[move.fromSquare()];
         PieceType movedType = mailboxType(fromPiece);
