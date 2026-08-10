@@ -2,8 +2,6 @@ Tom's Chess Engine (2)
 ---------------------
 To-Do List (not in order per se):
 
-- RFP
-- LMP
 - FP
 - Pawn Structure (Passed pawn, doubled pawns, isolated pawns)
 - King Safety
@@ -25,6 +23,8 @@ Search:
 - Killer Move, Relative History, and Countermove Heuristics 
 - LMR
 - NMP
+- RFP
+- LMP
 
 Evaluation:
 - Count Material
@@ -38,8 +38,6 @@ Move Generation:
 - Magic Bitboards
 
 Search:
-- Reverse Futility Pruning
-- Late Moves Pruning
 - Futility Pruning
 - QS and PVS SEE Pruning
 - Extensions
@@ -62,6 +60,7 @@ TCE_v2: killer move, relative history, and countermove heuristics
 TCE_v3: LMR
 TCE_v4: NMP
 TCE_v5: (safe) Mobility + Bishop pair bonus
+TCE_v6: RFP + LMP
 
 ---------------------
 Fastchess test command:
