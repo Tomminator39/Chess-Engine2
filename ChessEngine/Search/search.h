@@ -49,6 +49,7 @@ class Searcher {
         Move pvTable[MAX_PLY][MAX_PLY];
         int pvLength[MAX_PLY];
         
+        int staticEvalHistory[MAX_PLY];
         int lmrTable[MAX_PLY][256]; // Precomputed reduction rate for lmr
 
         void InitLMRTable();
