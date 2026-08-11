@@ -1,11 +1,27 @@
 #include "search.h"
 
-constexpr int NO_STATIC_EVAL = 32000;
+constexpr int NO_STATIC_EVAL = 32001;
 
+constexpr int RFP_MAX_DEPTH = 3;
+constexpr int RFP_MARGIN_PER_DEPTH = 120;
+constexpr int RFP_NOT_IMPROVING_PENALTY = 60;
+
+constexpr int NMP_MIN_DEPTH = 3;
+constexpr int NMP_REDUCTION = 3;
+
+constexpr int LMP_MAX_DEPTH = 5;
 constexpr int lmpThreshold[2][9] = {
     { 0, 2, 5, 10, 17, 26, 37, 50, 65 },  // not improving
     { 0, 5, 11, 21, 35, 53, 75, 101, 131 } // improving
 };
+
+constexpr int LMR_MIN_DEPTH = 3;
+constexpr double LMR_BASE = 0.5;
+constexpr double LMR_DIVISOR = 2.5;
+
+constexpr int FP_MAX_DEPTH = 3;
+constexpr int FP_MARGIN_BASE = 100;
+constexpr int FP_MARGIN_PER_DEPTH = 100;
 
 std::string moveToString(const Move& move) {
     if (move.data == 0) {
@@ -52,10 +68,10 @@ std::string FormatScore(int score) {
     return "cp " + std::to_string(score);
 }
 
-void Searcher::InitLMRTable(){ // Should change the values of a and b at some point with SPSA or texel tuning
+void Searcher::InitLMRTable(){
     for(int d = 1; d < MAX_PLY; d++){
         for(int m = 1; m < 256; m++){
-            lmrTable[d][m] = static_cast<int>(0.5 + log(d) * log(m) / 2.5);
+            lmrTable[d][m] = static_cast<int>(LMR_BASE + log(d) * log(m) / LMR_DIVISOR);
         }
     }
 }
@@ -255,9 +271,9 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
     bool improving = !info.inCheck && ply >= 2 && staticEvalHistory[ply - 2] != NO_STATIC_EVAL && staticEval > staticEvalHistory[ply - 2];
 
     // Reverse Futility Pruning 
-    if (ply > 0 && !isPvNode && !info.inCheck && depth <= 3){
-        int margin = 120 * depth;
-        if(!improving) margin += 60;
+    if (ply > 0 && !isPvNode && !info.inCheck && depth <= RFP_MAX_DEPTH){
+        int margin = RFP_MARGIN_PER_DEPTH * depth;
+        if(!improving) margin += RFP_NOT_IMPROVING_PENALTY;
         if (staticEval - margin >= beta) {
             if(!isMateScore(beta)){
                 return beta;
@@ -267,8 +283,8 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
 
     // Null move pruning. before generating moves to possibly save time, but we do need checkinfo
     bool hasNonPawnMaterial = (board.pieceBB[board.turn][KNIGHT] | board.pieceBB[board.turn][BISHOP] | board.pieceBB[board.turn][ROOK] | board.pieceBB[board.turn][QUEEN]) != 0; // Zugzwang cases
-    if(depth >= 3 && !isPvNode && !info.inCheck && !previousWasNullMove && hasNonPawnMaterial){
-        int R = 3; 
+    if(depth >= NMP_MIN_DEPTH && !isPvNode && !info.inCheck && !previousWasNullMove && hasNonPawnMaterial){
+        int R = NMP_REDUCTION; 
         board.makeNullMove();
         int reducedDepth = std::max(0, depth - 1 - R);
         int nullEval = -Search(board, -beta, -beta + 1, reducedDepth, ply + 1, Move(), true);
@@ -305,8 +321,16 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
         Color mover = board.turn;
         bool isQuiet = !move.isCapture() && !move.isPromotion();
 
+        // Futility Pruning
+        if(!isPvNode && !info.inCheck && depth <= 3 && isQuiet && !moveOrderer.IsKiller(move, ply) && legalMoveCount > 0){
+            int futilityMargin = FP_MARGIN_BASE + FP_MARGIN_PER_DEPTH * depth;
+            if(staticEval + futilityMargin <= alpha){
+                continue;  // move cant reach alpha TODO: tune margins
+            }
+        }
+
         // LMP
-        if(!isPvNode && !info.inCheck && depth <= 5 && isQuiet && quietMoveCount >= lmpThreshold[improving][depth] && !moveOrderer.IsKiller(move, ply) && !isInCheck(board, board.turn)){ //TODO: tune the depth value
+        if(!isPvNode && !info.inCheck && depth <= LMP_MAX_DEPTH && isQuiet && quietMoveCount >= lmpThreshold[improving][depth] && !moveOrderer.IsKiller(move, ply) && !isInCheck(board, board.turn)){ //TODO: tune the depth value
             continue;
         }
 
@@ -338,7 +362,7 @@ int Searcher::Search(Board& board, int alpha, int beta, int depth, int ply, Move
         int reduction = 0;
 
         // Grab LMR reduction from table
-        if(firstMoveSearched && depth >= 3 && !move.isCapture() && !move.isPromotion() && !info.inCheck && isPvNode == false && !isInCheck(board, board.turn)){
+        if(firstMoveSearched && depth >= LMR_MIN_DEPTH && !move.isCapture() && !move.isPromotion() && !info.inCheck && isPvNode == false && !isInCheck(board, board.turn)){
             reduction = lmrTable[depth][i];
             if(!improving) reduction += 1;  // one extra ply of reduction when not improving
             if(moveOrderer.IsKiller(move, ply)) reduction = reduction / 2;  // reduce killers less, but not totally

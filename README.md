@@ -5,6 +5,7 @@ To-Do List (not in order per se):
 - FP
 - Pawn Structure (Passed pawn, doubled pawns, isolated pawns)
 - King Safety
+- Improve endgame play
 ---------------------
 Current Features:
 
