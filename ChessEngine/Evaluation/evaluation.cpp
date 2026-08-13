@@ -1,5 +1,9 @@
 #include "evaluation.h"
 
+constexpr int MOPUP_PHASE_THRESHOLD = 8;
+constexpr int MOPUP_EDGE_WEIGHT = 10;
+constexpr int MOPUP_DISTANCE_WEIGHT = 5;
+
 struct MgEgScore { int mg; int eg; };
 
 void InitEvaluation() {
@@ -26,6 +30,14 @@ void InitEvaluation() {
             egPst[piece][BLACK][blackSq] = pieceValues[piece] + egPsts[piece][square];
         }
     }
+}
+
+int CountMaterial(const Board& board, Color color){
+    int material = 0;
+    for(int piece = 0; piece < 6; piece++){
+        material += pieceValues[piece] * __builtin_popcountll(board.pieceBB[color][piece]);
+    }
+    return material;
 }
 
 MgEgScore calculateBishopPair(const Board& board, Color color){
@@ -58,7 +70,32 @@ MgEgScore CalculateMobility(const Board& board, Color color) {
     return score;
 }
 
+int kingDistanceBonus(int myKingSquare, int enemyKingSquare) {
+    int myFile = myKingSquare % 8;
+    int myRank = myKingSquare / 8;
+    int enemyFile = enemyKingSquare % 8;
+    int enemyRank = enemyKingSquare / 8;
+
+    int distance = abs(myFile - enemyFile) + abs(myRank - enemyRank);
+    return 14 - distance;
+}
+
+bool isMopUpPhase(const Board& board, Color strongSide){
+    if(board.gamePhase > MOPUP_PHASE_THRESHOLD) return false; // early cheap exit so the bottom doesn't run each time
+
+    Color weakSide = (strongSide == WHITE) ? BLACK : WHITE;
+    bool weakSideHasNoMajors = (board.pieceBB[weakSide][QUEEN] | board.pieceBB[weakSide][ROOK]) == 0;
+    bool weakSideHasFewMinors = __builtin_popcountll(board.pieceBB[weakSide][KNIGHT] | board.pieceBB[weakSide][BISHOP]) <= 1;
+    if(!weakSideHasNoMajors || !weakSideHasFewMinors) return false;
+
+    int materialDiff = CountMaterial(board, strongSide) - CountMaterial(board, weakSide);
+    return materialDiff > 400;
+}
+
 int Evaluate(const Board& board) {
+    int whiteKingSquare = __builtin_ctzll(board.pieceBB[WHITE][KING]);
+    int blackKingSquare = __builtin_ctzll(board.pieceBB[BLACK][KING]);
+
     MgEgScore whiteMobility = CalculateMobility(board, WHITE);
     MgEgScore blackMobility = CalculateMobility(board, BLACK);
 
@@ -67,6 +104,13 @@ int Evaluate(const Board& board) {
 
     int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg);
     int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] + (whiteMobility.eg - blackMobility.eg) + (whiteBishopPair.eg - blackBishopPair.eg);
+
+    if(isMopUpPhase(board, WHITE)){
+        endgameEval += centerDistanceTable[blackKingSquare] * MOPUP_EDGE_WEIGHT + kingDistanceBonus(whiteKingSquare, blackKingSquare) * MOPUP_DISTANCE_WEIGHT;
+    }
+    if(isMopUpPhase(board, BLACK)){
+        endgameEval -= centerDistanceTable[whiteKingSquare] * MOPUP_EDGE_WEIGHT + kingDistanceBonus(blackKingSquare, whiteKingSquare) * MOPUP_DISTANCE_WEIGHT;
+    }
 
     // Tapered Eval
     int finalPhase = std::min(256, (board.gamePhase * 256 + 12) / 24);
