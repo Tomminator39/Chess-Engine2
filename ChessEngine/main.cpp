@@ -10,6 +10,7 @@
 
 int main() {
     InitZobristKeys();
+    InitFileMasks();
     InitEvaluation();
     PrecomputeMoveData();
 

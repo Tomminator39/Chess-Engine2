@@ -8,16 +8,16 @@ constexpr int pieceValues[] = {100, 300, 310, 525, 950, 0}; // pawn, knight, bis
 
 const int mg_Mobility[6][28] = {
     {}, // pawn, unused
-    // knight (0 to 8 moves) - now crosses 0 at index 2
+    // knight 
     { -15, -6, 2, 5, 7, 9, 11, 13, 15 },
 
-    // bishop (0 to 13 moves) - now crosses 0 at index 3
+    // bishop
     { -25, -13, -3, 3, 6, 9, 12, 14, 17, 19, 21, 23, 25, 27 },
 
-    // rook (0 to 14 moves) - now crosses 0 at index 2
+    // rook 
     { -10, -3, 1, 2, 3, 4, 5, 6, 8, 8, 9, 10, 11, 12, 13 },
 
-    // queen (0 to 27 moves) - now crosses 0 at index 6
+    // queen 
     { -10, -7, -5, -3, -1, 1, 2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12 },
 
     {} // king, unused
@@ -25,16 +25,16 @@ const int mg_Mobility[6][28] = {
 
 const int eg_Mobility[6][28] = {
     {}, // pawn, unused
-    // knight (0 to 8 moves) - now crosses 0 at index 2
+    // knight 
     { -30, -12, 4, 10, 14, 18, 22, 26, 30 },
 
-    // bishop (0 to 13 moves) - now crosses 0 at index 3
+    // bishop (
     { -50, -25, -5, 6, 12, 18, 24, 29, 34, 38, 42, 46, 50, 54 },
 
-    // rook (0 to 14 moves) - now crosses 0 at index 3
+    // rook 
     { -50, -25, -5, 6, 12, 18, 24, 29, 34, 38, 42, 46, 50, 54, 58 },
 
-    // queen (0 to 27 moves) - now crosses 0 at index 6
+    // queen 
     { -50, -33, -20, -10, -2, 4, 8, 12, 15, 18, 21, 25, 28, 31, 34, 37, 40, 42, 44, 46, 48, 49, 51, 52, 53, 54, 55, 56 },
 
     {} // king, unused
@@ -171,6 +171,8 @@ inline constexpr int egKingTable[64] = {
     -27, -11,   4,  13,  14,   4,  -5, -17,
     -53, -34, -21, -11, -28, -14, -24, -43
 };
+
+constexpr int pawnShieldScores[8] = {0, 10, 5, -5, -10, -10, -10, -10 };
 
 constexpr int BISHOP_PAIR_MG = 20; 
 constexpr int BISHOP_PAIR_EG = 45;

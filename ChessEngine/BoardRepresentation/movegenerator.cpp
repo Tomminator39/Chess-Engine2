@@ -15,6 +15,14 @@ static PieceType slidingPieces[] = {ROOK, BISHOP, QUEEN};
 static PieceType promotionPieces[] = {KNIGHT, BISHOP, ROOK, QUEEN};
 static int knightMoves[] = {15, 17, -15, -17, 6, 10, -6, -10};
 
+constexpr uint64_t fileA = 0x0101010101010101ULL;
+
+void InitFileMasks(){
+    for(int f = 0; f < 8; f++){
+        fileMasks[f] = fileA << f;
+    }
+}
+
 void PrecomputeMoveData(){
     for(int file = 0; file < 8; file++){
         for(int rank = 0; rank < 8; rank++){

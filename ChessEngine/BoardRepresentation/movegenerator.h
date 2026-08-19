@@ -1,6 +1,8 @@
 #pragma once
 #include "board.h"
 
+inline uint64_t fileMasks[8];  // 0 = A, 7 = F
+
 struct MoveList{
     Move moves[256];
     int count = 0;
@@ -12,6 +14,7 @@ struct CheckInfo{
     uint64_t checkers = 0; // If this is bigger or equal than 2 the king must move
 };
 
+void InitFileMasks();
 void PrecomputeMoveData();
 
 Move stringToMove(std::string moveString, Board& board);

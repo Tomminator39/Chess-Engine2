@@ -58,6 +58,34 @@ MgEgScore CalculateMobility(const Board& board, Color color) {
     return score;
 }
 
+int calculateKingSafetyScore(const Board& board, Color color){
+    int kingSquare = __builtin_ctzll(board.pieceBB[color][KING]);
+    int kingFile = kingSquare & 7;
+    int kingRank = kingSquare / 8;
+
+    bool onBackRank = (color == WHITE) ? (kingRank == 0) : (kingRank == 7);
+    bool committedToSide = (kingFile <= 2 || kingFile >= 5);  // roughly queenside or kingside castled territory
+    if(!onBackRank || !committedToSide) return 0;
+
+    int kingSafetyScore = 0;
+    for (int i = -1; i <= 1; i++){
+        int file = kingFile + i;
+        if(file < 0 || file > 7) continue;
+        uint64_t pawnsOnFile = fileMasks[file] & board.pieceBB[color][PAWN];
+        if(pawnsOnFile == 0){
+            kingSafetyScore -= 10;
+        }
+        else{
+            int pawnSquare = (color == WHITE) ? __builtin_ctzll(pawnsOnFile) : (63 - __builtin_clzll(pawnsOnFile));
+            int pawnRank = pawnSquare / 8;
+            int rankDistanceFromKing = std::abs(pawnRank - kingRank);
+            kingSafetyScore += pawnShieldScores[rankDistanceFromKing];
+        }
+    }
+
+    return kingSafetyScore;
+}
+
 int Evaluate(const Board& board) {
     MgEgScore whiteMobility = CalculateMobility(board, WHITE);
     MgEgScore blackMobility = CalculateMobility(board, BLACK);
@@ -65,7 +93,7 @@ int Evaluate(const Board& board) {
     MgEgScore whiteBishopPair = calculateBishopPair(board, WHITE);
     MgEgScore blackBishopPair = calculateBishopPair(board, BLACK);
 
-    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg);
+    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg) + (calculateKingSafetyScore(board, WHITE) - calculateKingSafetyScore(board, BLACK));
     int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] + (whiteMobility.eg - blackMobility.eg) + (whiteBishopPair.eg - blackBishopPair.eg);
 
     // Tapered Eval
