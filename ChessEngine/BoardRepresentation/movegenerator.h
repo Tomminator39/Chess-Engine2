@@ -1,6 +1,10 @@
 #pragma once
 #include "board.h"
 
+static uint64_t knightAttacks[64];
+static uint64_t kingAttacks[64];
+static uint64_t pawnAttacks[2][64]; // [color][square]
+
 inline uint64_t fileMasks[8];  // 0 = A, 7 = F
 
 struct MoveList{

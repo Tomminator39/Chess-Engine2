@@ -172,7 +172,20 @@ inline constexpr int egKingTable[64] = {
     -53, -34, -21, -11, -28, -14, -24, -43
 };
 
-constexpr int pawnShieldScores[8] = {0, 10, 5, -5, -10, -10, -10, -10 };
+constexpr int kingDangerTable[8][8] = {
+    { 0,   0,   0,   0,   0,   0,   0,   0 }, // Attacker amount is vertical (e,g, first row is 0 attackers, second is 1, etc), weight horizontal
+    { 0,   0,   0,   0,   0,   0,   0,   0 },
+    { 10,  15,  20,  25,  30,  35,  40,  45 },
+    { 25,  35,  45,  55,  65,  75,  85,  95 },
+    { 50,  65,  80,  95, 110, 125, 140, 155 },
+    { 80, 100, 120, 140, 160, 180, 200, 220 },
+    {120, 145, 170, 195, 220, 245, 270, 295 },
+    {170, 200, 230, 260, 290, 320, 350, 380 },
+};
+
+constexpr int attackWeight[6] = { 0, 20, 20, 40, 80, 0 };  // pawn, knight, bishop, rook, queen, king - For king safety
+
+constexpr int pawnShieldScores[8] = {0, 10, 4, -4, -10, -10, -10, -10};
 
 constexpr int BISHOP_PAIR_MG = 20; 
 constexpr int BISHOP_PAIR_EG = 45;

@@ -7,10 +7,6 @@
 int directionCompass[] = {8, -8, -1, 1, 7, -7, 9, -9};
 static int squaresToEdge[64][8];
 
-static uint64_t knightAttacks[64];
-static uint64_t kingAttacks[64];
-static uint64_t pawnAttacks[2][64]; // [color][square]
-
 static PieceType slidingPieces[] = {ROOK, BISHOP, QUEEN};
 static PieceType promotionPieces[] = {KNIGHT, BISHOP, ROOK, QUEEN};
 static int knightMoves[] = {15, 17, -15, -17, 6, 10, -6, -10};

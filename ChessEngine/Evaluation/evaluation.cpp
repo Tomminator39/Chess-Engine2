@@ -58,7 +58,7 @@ MgEgScore CalculateMobility(const Board& board, Color color) {
     return score;
 }
 
-int calculateKingSafetyScore(const Board& board, Color color){
+int calculateKingPawnShieldScore(const Board& board, Color color){
     int kingSquare = __builtin_ctzll(board.pieceBB[color][KING]);
     int kingFile = kingSquare & 7;
     int kingRank = kingSquare / 8;
@@ -73,7 +73,7 @@ int calculateKingSafetyScore(const Board& board, Color color){
         if(file < 0 || file > 7) continue;
         uint64_t pawnsOnFile = fileMasks[file] & board.pieceBB[color][PAWN];
         if(pawnsOnFile == 0){
-            kingSafetyScore -= 10;
+            kingSafetyScore -= 40;
         }
         else{
             int pawnSquare = (color == WHITE) ? __builtin_ctzll(pawnsOnFile) : (63 - __builtin_clzll(pawnsOnFile));
@@ -86,6 +86,34 @@ int calculateKingSafetyScore(const Board& board, Color color){
     return kingSafetyScore;
 }
 
+int calculateKingZoneAttackScore(const Board& board, Color kingColor){
+    int kingSquare = __builtin_ctzll(board.pieceBB[kingColor][KING]);
+    uint64_t kingZone = kingAttacks[kingSquare] | (1ULL << kingSquare);
+    Color enemy = (kingColor == WHITE) ? BLACK : WHITE;
+
+    int totalWeight = 0;
+    int attackerCount = 0;
+
+    for(PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}){
+        uint64_t pieces = board.pieceBB[enemy][piece];
+        while(pieces){
+            int square = __builtin_ctzll(pieces);
+            uint64_t attacks = getMobilityBitboard(board, square, piece, enemy);
+            uint64_t attacksInZone = attacks & kingZone;
+            if(attacksInZone != 0){
+                attackerCount++;
+                totalWeight += attackWeight[piece] * __builtin_popcountll(attacksInZone);
+            }
+            pieces &= pieces - 1;
+        }
+    }
+    if(attackerCount < 2) return 0; // Single attacker isnt a coordinated threat yet
+        int weightBucket = std::min(totalWeight / 40, 7);
+        int attackerBucket = std::min(attackerCount, 7);
+        int penalty = kingDangerTable[attackerBucket][weightBucket];
+        return penalty;
+    }
+
 int Evaluate(const Board& board) {
     MgEgScore whiteMobility = CalculateMobility(board, WHITE);
     MgEgScore blackMobility = CalculateMobility(board, BLACK);
@@ -93,8 +121,13 @@ int Evaluate(const Board& board) {
     MgEgScore whiteBishopPair = calculateBishopPair(board, WHITE);
     MgEgScore blackBishopPair = calculateBishopPair(board, BLACK);
 
-    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK] + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg) + (calculateKingSafetyScore(board, WHITE) - calculateKingSafetyScore(board, BLACK));
-    int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] + (whiteMobility.eg - blackMobility.eg) + (whiteBishopPair.eg - blackBishopPair.eg);
+    int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK]
+    + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg)
+    + (calculateKingPawnShieldScore(board, WHITE) - calculateKingPawnShieldScore(board, BLACK))
+    + (calculateKingZoneAttackScore(board, WHITE) - calculateKingZoneAttackScore(board, BLACK));
+
+    int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] 
+        + (whiteMobility.eg - blackMobility.eg) + (whiteBishopPair.eg - blackBishopPair.eg);
 
     // Tapered Eval
     int finalPhase = std::min(256, (board.gamePhase * 256 + 12) / 24);
