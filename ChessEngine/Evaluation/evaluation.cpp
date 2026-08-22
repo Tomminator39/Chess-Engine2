@@ -2,6 +2,13 @@
 
 struct MgEgScore { int mg; int eg; };
 
+struct PieceAttacks {
+    uint64_t attacks[10];   // one bitboard per piece KNIGHT/BISHOP/ROOK/QUEEN 
+    int square[10];         // matching square for each entry
+    PieceType type[10];
+    int count;             // how many entries are actually filled
+};
+
 void InitEvaluation() {
     const int* mgPsts[6] = {
         mgPawnTable, mgKnightTable, mgBishopTable,
@@ -28,6 +35,24 @@ void InitEvaluation() {
     }
 }
 
+PieceAttacks computePieceAttacks(const Board& board, Color color){
+    PieceAttacks result{};
+    result.count = 0;
+
+    for(PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}){
+        uint64_t pieces = board.pieceBB[color][piece];
+        while(pieces){
+            int square = __builtin_ctzll(pieces);
+            result.attacks[result.count] = getMobilityBitboard(board, square, piece, color);
+            result.square[result.count] = square;
+            result.type[result.count] = piece;
+            result.count++;
+            pieces &= pieces - 1;
+        }
+    }
+    return result;
+}
+
 MgEgScore calculateBishopPair(const Board& board, Color color){
     if(__builtin_popcountll(board.pieceBB[color][BISHOP]) >= 2){
         return { BISHOP_PAIR_MG, BISHOP_PAIR_EG};
@@ -35,26 +60,17 @@ MgEgScore calculateBishopPair(const Board& board, Color color){
     return {0, 0};
 }
 
-MgEgScore CalculateMobility(const Board& board, Color color) {
+MgEgScore CalculateMobility(const Board& board, Color color, const PieceAttacks& myAttacks){
     MgEgScore score{0, 0};
     Color enemy = (color == WHITE) ? BLACK : WHITE;
     uint64_t enemyPawnAttacks = getPawnAttackBitboard(board, enemy);
-    for (PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}) {
-        uint64_t pieces = board.pieceBB[color][piece];
 
-        while (pieces) {
-            int square = __builtin_ctzll(pieces);
-            uint64_t mobility = getMobilityBitboard(board, square, piece, color) & ~enemyPawnAttacks; // I'm counting on SEE in search to check against other pieces since it's quite expensive. 
-            int count = __builtin_popcountll(mobility);                                               // Getting the pawn attacks is very cheap though
-            count = std::min(count, 27);
-
-            score.mg += mg_Mobility[piece][count];
-            score.eg += eg_Mobility[piece][count];
-
-            pieces &= pieces - 1;
-        }
+    for(int i = 0; i < myAttacks.count; i++){
+        uint64_t mobility = myAttacks.attacks[i] & ~enemyPawnAttacks;
+        int count = std::min(__builtin_popcountll(mobility), 27);
+        score.mg += mg_Mobility[myAttacks.type[i]][count];
+        score.eg += eg_Mobility[myAttacks.type[i]][count];
     }
-
     return score;
 }
 
@@ -86,37 +102,37 @@ int calculateKingPawnShieldScore(const Board& board, Color color){
     return kingSafetyScore;
 }
 
-int calculateKingZoneAttackScore(const Board& board, Color kingColor){
+int calculateKingZoneAttackScore(const Board& board, Color kingColor, const PieceAttacks& enemyAttacks){
     int kingSquare = __builtin_ctzll(board.pieceBB[kingColor][KING]);
     uint64_t kingZone = kingAttacks[kingSquare] | (1ULL << kingSquare);
-    Color enemy = (kingColor == WHITE) ? BLACK : WHITE;
 
     int totalWeight = 0;
     int attackerCount = 0;
 
-    for(PieceType piece : {KNIGHT, BISHOP, ROOK, QUEEN}){
-        uint64_t pieces = board.pieceBB[enemy][piece];
-        while(pieces){
-            int square = __builtin_ctzll(pieces);
-            uint64_t attacks = getMobilityBitboard(board, square, piece, enemy);
-            uint64_t attacksInZone = attacks & kingZone;
-            if(attacksInZone != 0){
-                attackerCount++;
-                totalWeight += attackWeight[piece] * __builtin_popcountll(attacksInZone);
-            }
-            pieces &= pieces - 1;
+    for(int i = 0; i < enemyAttacks.count; i++){
+        uint64_t attacksInZone = enemyAttacks.attacks[i] & kingZone;
+        if(attacksInZone != 0){
+            attackerCount++;
+            totalWeight += attackWeight[enemyAttacks.type[i]] * __builtin_popcountll(attacksInZone);
         }
     }
-    if(attackerCount < 2) return 0; // Single attacker isnt a coordinated threat yet
-        int weightBucket = std::min(totalWeight / 40, 7);
-        int attackerBucket = std::min(attackerCount, 7);
-        int penalty = kingDangerTable[attackerBucket][weightBucket];
-        return penalty;
-    }
+
+    if(attackerCount < 2) return 0;
+
+    int weightBucket = std::min(totalWeight / 40, 7);
+    int attackerBucket = std::min(attackerCount, 7);
+    return kingDangerTable[attackerBucket][weightBucket];
+}
 
 int Evaluate(const Board& board) {
-    MgEgScore whiteMobility = CalculateMobility(board, WHITE);
-    MgEgScore blackMobility = CalculateMobility(board, BLACK);
+    PieceAttacks whiteAttacks = computePieceAttacks(board, WHITE);
+    PieceAttacks blackAttacks = computePieceAttacks(board, BLACK);
+
+    MgEgScore whiteMobility = CalculateMobility(board, WHITE, whiteAttacks);
+    MgEgScore blackMobility = CalculateMobility(board, BLACK, blackAttacks);
+
+    int whiteKingDanger = calculateKingZoneAttackScore(board, WHITE, blackAttacks); // note: blackAttacks, since it's Blacks pieces attacking Whites king zone
+    int blackKingDanger = calculateKingZoneAttackScore(board, BLACK, whiteAttacks);
 
     MgEgScore whiteBishopPair = calculateBishopPair(board, WHITE);
     MgEgScore blackBishopPair = calculateBishopPair(board, BLACK);
@@ -124,7 +140,7 @@ int Evaluate(const Board& board) {
     int midgameEval = board.midgameScore[WHITE] - board.midgameScore[BLACK]
     + (whiteMobility.mg - blackMobility.mg) + (whiteBishopPair.mg - blackBishopPair.mg)
     + (calculateKingPawnShieldScore(board, WHITE) - calculateKingPawnShieldScore(board, BLACK))
-    + (calculateKingZoneAttackScore(board, WHITE) - calculateKingZoneAttackScore(board, BLACK));
+    + (whiteKingDanger - blackKingDanger);
 
     int endgameEval = board.endgameScore[WHITE] - board.endgameScore[BLACK] 
         + (whiteMobility.eg - blackMobility.eg) + (whiteBishopPair.eg - blackBishopPair.eg);
