@@ -117,11 +117,11 @@ int calculateKingZoneAttackScore(const Board& board, Color kingColor, const Piec
         }
     }
 
-    if(attackerCount < 2) return 0;
+    if(attackerCount < 3 || totalWeight < 80) return 0;
 
     int weightBucket = std::min(totalWeight / 40, 7);
     int attackerBucket = std::min(attackerCount, 7);
-    return kingDangerTable[attackerBucket][weightBucket];
+    return -kingDangerTable[attackerBucket][weightBucket];
 }
 
 int Evaluate(const Board& board) {
