@@ -121,13 +121,7 @@ int calculateKingZoneAttackScore(const Board& board, Color kingColor, const Piec
 
     int weightBucket = std::min(totalWeight / 40, 7);
     int attackerBucket = std::min(attackerCount, 7);
-    int rawPenalty = -kingDangerTable[attackerBucket][weightBucket];
-
-    int finalPhase = std::min(256, (board.gamePhase * 256 + 12) / 24);
-    int64_t phaseRatioSquared = (static_cast<int64_t>(finalPhase) * finalPhase) / 256;
-    int scaledPenalty = static_cast<int>((static_cast<int64_t>(rawPenalty) * phaseRatioSquared) / 256); // I added this because I think it might be firing too often later in the game, making the engine worse. Let's test :)
-
-    return scaledPenalty;
+    return -kingDangerTable[attackerBucket][weightBucket];
 }
 
 int Evaluate(const Board& board) {
